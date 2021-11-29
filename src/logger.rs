@@ -1,10 +1,10 @@
 use rust_extensions::date_time::DateTimeAsMicroseconds;
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{LogType, MyLoggerReader, MySbClientLogEvent};
+use super::{LogType, MyLogEvent, MyLoggerReader};
 
 pub struct MyLogger {
-    tx: Option<UnboundedSender<MySbClientLogEvent>>,
+    tx: Option<UnboundedSender<MyLogEvent>>,
 }
 
 impl MyLogger {
@@ -26,7 +26,7 @@ impl MyLogger {
         context: Option<String>,
     ) {
         if let Some(tx) = &self.tx {
-            let result = tx.send(MySbClientLogEvent {
+            let result = tx.send(MyLogEvent {
                 log_type,
                 process,
                 message,

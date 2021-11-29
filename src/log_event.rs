@@ -16,7 +16,7 @@ impl LogType {
 }
 
 #[derive(Debug)]
-pub struct MySbClientLogEvent {
+pub struct MyLogEvent {
     pub log_type: LogType,
     pub process: String,
     pub message: String,

@@ -2,17 +2,17 @@ use std::time::Duration;
 
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use super::MySbClientLogEvent;
+use super::MyLogEvent;
 
 pub struct MyLoggerReader {
-    rx: UnboundedReceiver<MySbClientLogEvent>,
+    rx: UnboundedReceiver<MyLogEvent>,
 }
 
 impl MyLoggerReader {
-    pub fn new(rx: UnboundedReceiver<MySbClientLogEvent>) -> Self {
+    pub fn new(rx: UnboundedReceiver<MyLogEvent>) -> Self {
         Self { rx }
     }
-    pub async fn get_next_line(&mut self) -> MySbClientLogEvent {
+    pub async fn get_next_line(&mut self) -> MyLogEvent {
         loop {
             let line = self.rx.recv().await;
 
