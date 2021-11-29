@@ -1,7 +1,7 @@
 use rust_extensions::date_time::DateTimeAsMicroseconds;
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{LogType, MyLogEvent, MyLoggerReader};
+use super::{LogLevel, MyLogEvent, MyLoggerReader};
 
 pub struct MyLogger {
     tx: Option<UnboundedSender<MyLogEvent>>,
@@ -20,14 +20,14 @@ impl MyLogger {
 
     pub fn write_log(
         &self,
-        log_type: LogType,
+        level: LogLevel,
         process: String,
         message: String,
         context: Option<String>,
     ) {
         if let Some(tx) = &self.tx {
             let result = tx.send(MyLogEvent {
-                log_type,
+                level,
                 process,
                 message,
                 context,
@@ -38,7 +38,7 @@ impl MyLogger {
             }
         } else {
             let now = DateTimeAsMicroseconds::now();
-            println!("{} {:?}", now.to_rfc3339(), log_type);
+            println!("{} {:?}", now.to_rfc3339(), level);
             println!("Process: {}", process);
             println!("Message: {}", message);
 

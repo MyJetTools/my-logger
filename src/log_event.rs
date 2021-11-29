@@ -1,23 +1,23 @@
 #[derive(Debug)]
-pub enum LogType {
+pub enum LogLevel {
     Info,
     Error,
     FatalError,
 }
 
-impl LogType {
+impl LogLevel {
     pub fn to_string(&self) -> &'static str {
         match self {
-            LogType::Info => "Info",
-            LogType::Error => "Error",
-            LogType::FatalError => "FatalError",
+            LogLevel::Info => "Info",
+            LogLevel::Error => "Error",
+            LogLevel::FatalError => "FatalError",
         }
     }
 }
 
 #[derive(Debug)]
 pub struct MyLogEvent {
-    pub log_type: LogType,
+    pub level: LogLevel,
     pub process: String,
     pub message: String,
     pub context: Option<String>,
