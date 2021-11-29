@@ -4,6 +4,17 @@ pub enum LogType {
     Error,
     FatalError,
 }
+
+impl LogType {
+    pub fn to_string(&self) -> &'static str {
+        match self {
+            LogType::Info => "Info",
+            LogType::Error => "Error",
+            LogType::FatalError => "FatalError",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct MySbClientLogEvent {
     pub log_type: LogType,
