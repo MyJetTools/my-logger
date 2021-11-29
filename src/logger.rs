@@ -7,31 +7,37 @@ use crate::LogData;
 
 use super::{LogLevel, MyLogEvent, MyLoggerReader};
 
+pub struct LoggerQueue {
+    pub has_reader: bool,
+    pub data: VecDeque<MyLogEvent>,
+}
+
 pub struct MyLogger {
-    queue: Option<Arc<Mutex<VecDeque<MyLogEvent>>>>,
+    queue: Arc<Mutex<LoggerQueue>>,
 }
 
 impl MyLogger {
     pub fn new() -> Self {
-        Self { queue: None }
+        Self {
+            queue: Arc::new(Mutex::new(LoggerQueue {
+                has_reader: false,
+                data: VecDeque::new(),
+            })),
+        }
     }
 
-    pub fn get_reader(&mut self) -> MyLoggerReader {
-        let queue = Arc::new(Mutex::new(VecDeque::new()));
-
-        self.queue = Some(queue.clone());
-
-        MyLoggerReader::new(queue)
+    pub fn get_reader(&self) -> MyLoggerReader {
+        MyLoggerReader::new(self.queue.clone())
     }
 
     pub fn shutdown(&self) {
-        if let Some(queue) = &self.queue {
-            let queue = queue.clone();
-            tokio::spawn(async move {
-                let mut queue = queue.lock().await;
-                queue.push_back(MyLogEvent::TheEnd);
-            });
-        }
+        let queue = self.queue.clone();
+        tokio::spawn(async move {
+            let mut queue = queue.lock().await;
+            if queue.has_reader {
+                queue.data.push_back(MyLogEvent::TheEnd);
+            }
+        });
     }
 
     pub fn write_log(
@@ -41,9 +47,12 @@ impl MyLogger {
         message: String,
         context: Option<String>,
     ) {
-        if let Some(queue) = &self.queue {
-            let queue = queue.clone();
-            tokio::spawn(async move {
+        let queue = self.queue.clone();
+
+        tokio::spawn(async move {
+            let mut queue = queue.lock().await;
+
+            if queue.has_reader {
                 let data = LogData {
                     level,
                     process,
@@ -52,18 +61,17 @@ impl MyLogger {
                     dt: DateTimeAsMicroseconds::now(),
                 };
 
-                let mut queue = queue.lock().await;
-                queue.push_back(MyLogEvent::NewEvent(data));
-            });
-        } else {
-            let now = DateTimeAsMicroseconds::now();
-            println!("{} {:?}", now.to_rfc3339(), level);
-            println!("Process: {}", process);
-            println!("Message: {}", message);
+                queue.data.push_back(MyLogEvent::NewEvent(data));
+            } else {
+                let now = DateTimeAsMicroseconds::now();
+                println!("{} {:?}", now.to_rfc3339(), level);
+                println!("Process: {}", process);
+                println!("Message: {}", message);
 
-            if let Some(ctx) = context {
-                println!("Context: {}", ctx);
+                if let Some(ctx) = context {
+                    println!("Context: {}", ctx);
+                }
             }
-        }
+        });
     }
 }
