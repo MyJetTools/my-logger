@@ -49,6 +49,7 @@ impl MyLogger {
                     process,
                     message,
                     context,
+                    dt: DateTimeAsMicroseconds::now(),
                 };
 
                 let mut queue = queue.lock().await;

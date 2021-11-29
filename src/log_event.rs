@@ -1,3 +1,5 @@
+use rust_extensions::date_time::DateTimeAsMicroseconds;
+
 #[derive(Debug)]
 pub enum LogLevel {
     Info,
@@ -23,6 +25,7 @@ pub enum MyLogEvent {
 
 #[derive(Debug)]
 pub struct LogData {
+    pub dt: DateTimeAsMicroseconds,
     pub level: LogLevel,
     pub process: String,
     pub message: String,
