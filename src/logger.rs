@@ -1,21 +1,37 @@
+use std::{collections::VecDeque, sync::Arc};
+
 use rust_extensions::date_time::DateTimeAsMicroseconds;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::Mutex;
+
+use crate::LogData;
 
 use super::{LogLevel, MyLogEvent, MyLoggerReader};
 
 pub struct MyLogger {
-    tx: Option<UnboundedSender<MyLogEvent>>,
+    queue: Option<Arc<Mutex<VecDeque<MyLogEvent>>>>,
 }
 
 impl MyLogger {
     pub fn new() -> Self {
-        Self { tx: None }
+        Self { queue: None }
     }
 
     pub fn get_reader(&mut self) -> MyLoggerReader {
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        self.tx = Some(tx);
-        MyLoggerReader::new(rx)
+        let queue = Arc::new(Mutex::new(VecDeque::new()));
+
+        self.queue = Some(queue.clone());
+
+        MyLoggerReader::new(queue)
+    }
+
+    pub fn shutdown(&self) {
+        if let Some(queue) = &self.queue {
+            let queue = queue.clone();
+            tokio::spawn(async move {
+                let mut queue = queue.lock().await;
+                queue.push_back(MyLogEvent::TheEnd);
+            });
+        }
     }
 
     pub fn write_log(
@@ -25,17 +41,19 @@ impl MyLogger {
         message: String,
         context: Option<String>,
     ) {
-        if let Some(tx) = &self.tx {
-            let result = tx.send(MyLogEvent {
-                level,
-                process,
-                message,
-                context,
-            });
+        if let Some(queue) = &self.queue {
+            let queue = queue.clone();
+            tokio::spawn(async move {
+                let data = LogData {
+                    level,
+                    process,
+                    message,
+                    context,
+                };
 
-            if let Err(err) = result {
-                println!("Somehow we could not send log event to sender. Err:{}", err);
-            }
+                let mut queue = queue.lock().await;
+                queue.push_back(MyLogEvent::NewEvent(data));
+            });
         } else {
             let now = DateTimeAsMicroseconds::now();
             println!("{} {:?}", now.to_rfc3339(), level);

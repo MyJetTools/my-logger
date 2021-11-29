@@ -16,7 +16,13 @@ impl LogLevel {
 }
 
 #[derive(Debug)]
-pub struct MyLogEvent {
+pub enum MyLogEvent {
+    NewEvent(LogData),
+    TheEnd,
+}
+
+#[derive(Debug)]
+pub struct LogData {
     pub level: LogLevel,
     pub process: String,
     pub message: String,
