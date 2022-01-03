@@ -4,4 +4,4 @@ mod logger_reader;
 
 pub use log_event::{LogData, LogLevel, MyLogEvent};
 pub use logger::MyLogger;
-pub use logger_reader::MyLoggerReader;
+pub use logger_reader::{GetMyLoggerReader, MyLoggerReader};

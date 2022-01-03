@@ -4,6 +4,10 @@ use tokio::sync::Mutex;
 
 use super::MyLogEvent;
 
+pub trait GetMyLoggerReader {
+    fn get(&self) -> &MyLoggerReader;
+}
+
 pub struct MyLoggerReader {
     queue: Arc<Mutex<VecDeque<MyLogEvent>>>,
 }
