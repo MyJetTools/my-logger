@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use super::MyLogEvent;
 
 pub trait GetMyLoggerReader {
-    fn get(&self) -> &MyLoggerReader;
+    fn get(&self) -> Arc<MyLoggerReader>;
 }
 
 pub struct MyLoggerReader {
