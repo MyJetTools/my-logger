@@ -51,6 +51,8 @@ impl MyLogger {
                 if let Some(ctx) = context {
                     println!("Context: {}", ctx);
                 }
+
+                println!("-------------------")
             }
             Self::ToReader(queue) => {
                 let queue = queue.clone();
