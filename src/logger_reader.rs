@@ -1,45 +1,27 @@
-use std::{collections::VecDeque, sync::Arc};
-
-use tokio::sync::Mutex;
-
 use super::MyLogEvent;
 
-pub trait GetMyLoggerReader {
-    fn get(&self) -> Arc<MyLoggerReader>;
+pub trait MyLoggerReader {
+    fn write_log(&self, log_event: MyLogEvent);
 }
 
-pub struct MyLoggerReader {
-    queue: Arc<Mutex<VecDeque<MyLogEvent>>>,
-}
+pub struct MyLoggerReaderToConcole {}
 
-impl MyLoggerReader {
+impl MyLoggerReaderToConcole {
     pub fn new() -> Self {
-        Self {
-            queue: Arc::new(Mutex::new(VecDeque::new())),
-        }
+        Self {}
     }
+}
 
-    pub fn get_queue_for_writer(&self) -> Arc<Mutex<VecDeque<MyLogEvent>>> {
-        self.queue.clone()
-    }
+impl MyLoggerReader for MyLoggerReaderToConcole {
+    fn write_log(&self, log_event: MyLogEvent) {
+        println!("{} {:?}", log_event.dt.to_rfc3339(), log_event.level);
+        println!("Process: {}", log_event.process);
+        println!("Message: {}", log_event.message);
 
-    pub async fn get_next_line(&self, max_amount: usize) -> Option<Vec<MyLogEvent>> {
-        let mut queue = self.queue.lock().await;
-
-        if queue.len() == 0 {
-            return None;
+        if let Some(ctx) = log_event.context {
+            println!("Context: {}", ctx);
         }
 
-        let mut result = Vec::with_capacity(max_amount);
-
-        for item in queue.drain(..) {
-            result.push(item);
-
-            if result.len() >= max_amount {
-                break;
-            }
-        }
-
-        Some(result)
+        println!("-------------------")
     }
 }

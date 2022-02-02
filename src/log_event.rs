@@ -18,13 +18,7 @@ impl LogLevel {
 }
 
 #[derive(Debug)]
-pub enum MyLogEvent {
-    NewEvent(LogData),
-    TheEnd,
-}
-
-#[derive(Debug)]
-pub struct LogData {
+pub struct MyLogEvent {
     pub dt: DateTimeAsMicroseconds,
     pub level: LogLevel,
     pub process: String,

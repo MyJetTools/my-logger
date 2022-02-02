@@ -1,36 +1,23 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::sync::Arc;
 
 use rust_extensions::date_time::DateTimeAsMicroseconds;
-use tokio::sync::Mutex;
 
-use crate::{LogData, MyLogEvent};
+use crate::{MyLogEvent, MyLoggerReaderToConcole};
 
 use super::{LogLevel, MyLoggerReader};
 
-pub enum MyLogger {
-    ToConcole,
-    ToReader(Arc<Mutex<VecDeque<MyLogEvent>>>),
+pub struct MyLogger {
+    logger_reader: Arc<dyn MyLoggerReader>,
 }
 
 impl MyLogger {
-    pub fn new(logger_reader: Option<&MyLoggerReader>) -> Self {
-        if let Some(logger_reader) = logger_reader {
-            Self::ToReader(logger_reader.get_queue_for_writer())
-        } else {
-            Self::ToConcole
-        }
+    pub fn new(logger_reader: Arc<dyn MyLoggerReader>) -> Self {
+        Self { logger_reader }
     }
 
-    pub fn shutdown(&self) {
-        match self {
-            Self::ToConcole => {}
-            Self::ToReader(queue) => {
-                let queue = queue.clone();
-                tokio::spawn(async move {
-                    let mut write_access = queue.lock().await;
-                    write_access.push_back(MyLogEvent::TheEnd);
-                });
-            }
+    pub fn to_concole() -> Self {
+        Self {
+            logger_reader: Arc::new(MyLoggerReaderToConcole::new()),
         }
     }
 
@@ -41,32 +28,14 @@ impl MyLogger {
         message: String,
         context: Option<String>,
     ) {
-        let dt = DateTimeAsMicroseconds::now();
-        match self {
-            Self::ToConcole => {
-                println!("{} {:?}", dt.to_rfc3339(), level);
-                println!("Process: {}", process);
-                println!("Message: {}", message);
+        let log_event = MyLogEvent {
+            dt: DateTimeAsMicroseconds::now(),
+            context,
+            level,
+            message,
+            process,
+        };
 
-                if let Some(ctx) = context {
-                    println!("Context: {}", ctx);
-                }
-
-                println!("-------------------")
-            }
-            Self::ToReader(queue) => {
-                let queue = queue.clone();
-                tokio::spawn(async move {
-                    let mut write_access = queue.lock().await;
-                    write_access.push_back(MyLogEvent::NewEvent(LogData {
-                        dt,
-                        context,
-                        level,
-                        message,
-                        process,
-                    }));
-                });
-            }
-        }
+        self.logger_reader.write_log(log_event);
     }
 }
