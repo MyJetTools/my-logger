@@ -7,11 +7,11 @@ use crate::{MyLogEvent, MyLoggerReaderToConcole};
 use super::{LogLevel, MyLoggerReader};
 
 pub struct MyLogger {
-    logger_reader: Arc<dyn MyLoggerReader>,
+    logger_reader: Arc<dyn MyLoggerReader + Sync + Send + 'static>,
 }
 
 impl MyLogger {
-    pub fn new(logger_reader: Arc<dyn MyLoggerReader>) -> Self {
+    pub fn new(logger_reader: Arc<dyn MyLoggerReader + Sync + Send + 'static>) -> Self {
         Self { logger_reader }
     }
 
