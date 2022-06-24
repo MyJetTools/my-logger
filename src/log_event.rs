@@ -3,6 +3,7 @@ use rust_extensions::date_time::DateTimeAsMicroseconds;
 #[derive(Debug)]
 pub enum LogLevel {
     Info,
+    Warning,
     Error,
     FatalError,
 }
@@ -11,6 +12,7 @@ impl LogLevel {
     pub fn to_string(&self) -> &'static str {
         match self {
             LogLevel::Info => "Info",
+            LogLevel::Warning => "Warning",
             LogLevel::Error => "Error",
             LogLevel::FatalError => "FatalError",
         }
