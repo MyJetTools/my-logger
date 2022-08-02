@@ -19,7 +19,7 @@ impl MyLoggerReader for MyLoggerReaderToConcole {
         println!("Message: {}", log_event.message);
 
         if let Some(ctx) = log_event.context {
-            println!("Context: {}", ctx);
+            println!("Context: {:?}", ctx);
         }
 
         println!("-------------------")

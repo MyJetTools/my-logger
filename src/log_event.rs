@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rust_extensions::date_time::DateTimeAsMicroseconds;
 
 #[derive(Debug)]
@@ -25,5 +27,5 @@ pub struct MyLogEvent {
     pub level: LogLevel,
     pub process: String,
     pub message: String,
-    pub context: Option<String>,
+    pub context: Option<HashMap<String, String>>,
 }

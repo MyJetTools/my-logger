@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger};
 
@@ -26,7 +26,7 @@ impl MyLogger {
         level: LogLevel,
         process: String,
         message: String,
-        context: Option<String>,
+        context: Option<HashMap<String, String>>,
     ) {
         let log_event = MyLogEvent {
             dt: DateTimeAsMicroseconds::now(),
@@ -41,19 +41,29 @@ impl MyLogger {
 }
 
 impl Logger for MyLogger {
-    fn write_info(&self, process: String, message: String, ctx: Option<String>) {
+    fn write_info(&self, process: String, message: String, ctx: Option<HashMap<String, String>>) {
         self.write_log(LogLevel::Info, process, message, ctx);
     }
 
-    fn write_warning(&self, process: String, message: String, ctx: Option<String>) {
+    fn write_warning(
+        &self,
+        process: String,
+        message: String,
+        ctx: Option<HashMap<String, String>>,
+    ) {
         self.write_log(LogLevel::Warning, process, message, ctx);
     }
 
-    fn write_error(&self, process: String, message: String, ctx: Option<String>) {
+    fn write_error(&self, process: String, message: String, ctx: Option<HashMap<String, String>>) {
         self.write_log(LogLevel::Error, process, message, ctx);
     }
 
-    fn write_fatal_error(&self, process: String, message: String, ctx: Option<String>) {
+    fn write_fatal_error(
+        &self,
+        process: String,
+        message: String,
+        ctx: Option<HashMap<String, String>>,
+    ) {
         self.write_log(LogLevel::FatalError, process, message, ctx);
     }
 }
