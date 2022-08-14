@@ -4,10 +4,7 @@ use std::{
 };
 
 use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger};
-use tokio::sync::{
-    mpsc::{UnboundedReceiver, UnboundedSender},
-    Mutex,
-};
+use tokio::sync::Mutex;
 
 use crate::{MyLogEvent, MyLoggerReader};
 
@@ -53,14 +50,12 @@ impl ConsoleFilter {
 
 struct MyLoggerSingleThreaded {
     readers: Vec<Arc<dyn MyLoggerReader + Send + Sync + 'static>>,
-    receiver: Option<UnboundedReceiver<Arc<MyLogEvent>>>,
 }
 
 impl MyLoggerSingleThreaded {
-    pub fn new(receiver: UnboundedReceiver<Arc<MyLogEvent>>) -> Self {
+    pub fn new() -> Self {
         Self {
             readers: Vec::new(),
-            receiver: Some(receiver),
         }
     }
 }
@@ -68,18 +63,15 @@ impl MyLoggerSingleThreaded {
 pub struct MyLogger {
     single_threaded: Arc<Mutex<MyLoggerSingleThreaded>>,
     pub to_console_filter: ConsoleFilter,
-    sender: UnboundedSender<Arc<MyLogEvent>>,
-    receiver_is_plugged: AtomicBool,
+    reader_is_plugged: AtomicBool,
 }
 
 impl MyLogger {
     pub fn new() -> Self {
-        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
         Self {
-            single_threaded: Arc::new(Mutex::new(MyLoggerSingleThreaded::new(receiver))),
+            single_threaded: Arc::new(Mutex::new(MyLoggerSingleThreaded::new())),
             to_console_filter: ConsoleFilter::new(),
-            sender,
-            receiver_is_plugged: AtomicBool::new(false),
+            reader_is_plugged: AtomicBool::new(false),
         }
     }
 
@@ -87,12 +79,8 @@ impl MyLogger {
         let mut write_access = self.single_threaded.lock().await;
         write_access.readers.push(reader);
 
-        if let Some(reader) = write_access.receiver.take() {
-            self.receiver_is_plugged
-                .store(true, std::sync::atomic::Ordering::SeqCst);
-
-            tokio::spawn(write_logs(write_access.readers.clone(), reader));
-        }
+        self.reader_is_plugged
+            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 
     pub fn write_log(
@@ -150,12 +138,18 @@ impl MyLogger {
         }
 
         if self
-            .receiver_is_plugged
+            .reader_is_plugged
             .load(std::sync::atomic::Ordering::Relaxed)
         {
-            if self.sender.send(Arc::new(log_event)).is_err() {
-                println!("Can not send event to log sender");
-            }
+            let single_threaded = self.single_threaded.clone();
+            let log_event = Arc::new(log_event);
+
+            tokio::spawn(async move {
+                let read_access = single_threaded.lock().await;
+                for reader in &read_access.readers {
+                    reader.write_log(log_event.clone()).await;
+                }
+            });
         }
     }
 }
@@ -198,21 +192,4 @@ fn write_log(log_event: &MyLogEvent) {
     }
 
     println!("-------------------")
-}
-
-async fn write_logs(
-    readers: Vec<Arc<dyn MyLoggerReader + Send + Sync + 'static>>,
-    mut receiver: UnboundedReceiver<Arc<MyLogEvent>>,
-) {
-    loop {
-        if let Some(message) = tokio::sync::mpsc::UnboundedReceiver::recv(&mut receiver).await {
-            for reader in readers.iter() {
-                let reader = reader.clone();
-                let message = message.clone();
-                tokio::spawn(async move {
-                    reader.write_log(message).await;
-                });
-            }
-        }
-    }
 }
