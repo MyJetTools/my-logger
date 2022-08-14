@@ -53,11 +53,11 @@ impl ConsoleFilter {
 
 struct MyLoggerSingleThreaded {
     readers: Vec<Arc<dyn MyLoggerReader + Send + Sync + 'static>>,
-    receiver: Option<UnboundedReceiver<MyLogEvent>>,
+    receiver: Option<UnboundedReceiver<Arc<MyLogEvent>>>,
 }
 
 impl MyLoggerSingleThreaded {
-    pub fn new(receiver: UnboundedReceiver<MyLogEvent>) -> Self {
+    pub fn new(receiver: UnboundedReceiver<Arc<MyLogEvent>>) -> Self {
         Self {
             readers: Vec::new(),
             receiver: Some(receiver),
@@ -68,7 +68,7 @@ impl MyLoggerSingleThreaded {
 pub struct MyLogger {
     single_threaded: Arc<Mutex<MyLoggerSingleThreaded>>,
     pub to_console_filter: ConsoleFilter,
-    sender: UnboundedSender<MyLogEvent>,
+    sender: UnboundedSender<Arc<MyLogEvent>>,
     receiver_is_plugged: AtomicBool,
 }
 
@@ -153,7 +153,7 @@ impl MyLogger {
             .receiver_is_plugged
             .load(std::sync::atomic::Ordering::Relaxed)
         {
-            if self.sender.send(log_event).is_err() {
+            if self.sender.send(Arc::new(log_event)).is_err() {
                 println!("Can not send event to log sender");
             }
         }
@@ -202,16 +202,15 @@ fn write_log(log_event: &MyLogEvent) {
 
 async fn write_logs(
     readers: Vec<Arc<dyn MyLoggerReader + Send + Sync + 'static>>,
-    mut receiver: UnboundedReceiver<MyLogEvent>,
+    mut receiver: UnboundedReceiver<Arc<MyLogEvent>>,
 ) {
     loop {
         if let Some(message) = tokio::sync::mpsc::UnboundedReceiver::recv(&mut receiver).await {
-            let message = Arc::new(message);
             for reader in readers.iter() {
                 let reader = reader.clone();
                 let message = message.clone();
                 tokio::spawn(async move {
-                    reader.write_log(&message).await;
+                    reader.write_log(message).await;
                 });
             }
         }
