@@ -211,7 +211,7 @@ async fn write_logs(
                 let reader = reader.clone();
                 let message = message.clone();
                 tokio::spawn(async move {
-                    reader.write_log(&message);
+                    reader.write_log(&message).await;
                 });
             }
         }

@@ -9,3 +9,4 @@ edition = "2021"
 rust-extensions = { branch = "0.1.1", git = "https://github.com/MyJetTools/rust-extensions.git" }
 lazy_static = "*"
 tokio = { version = "*", features = ["full"] }
+async-trait = "*"

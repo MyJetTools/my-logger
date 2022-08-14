@@ -1,5 +1,6 @@
 use super::MyLogEvent;
 
+#[async_trait::async_trait]
 pub trait MyLoggerReader {
-    fn write_log(&self, log_event: &MyLogEvent);
+    async fn write_log(&self, log_event: &MyLogEvent);
 }
