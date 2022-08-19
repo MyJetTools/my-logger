@@ -22,8 +22,8 @@ impl ConsoleFilter {
         Self {
             print_fatal_errors: AtomicBool::new(true),
             print_errors: AtomicBool::new(true),
-            print_warnings: AtomicBool::new(false),
-            print_infos: AtomicBool::new(false),
+            print_warnings: AtomicBool::new(true),
+            print_infos: AtomicBool::new(true),
         }
     }
 
