@@ -8,6 +8,7 @@ pub enum LogLevel {
     Warning,
     Error,
     FatalError,
+    Debug,
 }
 
 impl LogLevel {
@@ -17,6 +18,7 @@ impl LogLevel {
             LogLevel::Warning => "Warning",
             LogLevel::Error => "Error",
             LogLevel::FatalError => "FatalError",
+            LogLevel::Debug => "Debug",
         }
     }
 }

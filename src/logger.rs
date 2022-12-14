@@ -11,6 +11,7 @@ use crate::{MyLogEvent, MyLoggerReader};
 use super::LogLevel;
 
 pub struct ConsoleFilter {
+    pub print_debug: AtomicBool,
     pub print_fatal_errors: AtomicBool,
     pub print_errors: AtomicBool,
     pub print_warnings: AtomicBool,
@@ -24,6 +25,7 @@ impl ConsoleFilter {
             print_errors: AtomicBool::new(true),
             print_warnings: AtomicBool::new(true),
             print_infos: AtomicBool::new(true),
+            print_debug: AtomicBool::new(true),
         }
     }
 
@@ -44,6 +46,11 @@ impl ConsoleFilter {
 
     pub fn set_print_infos(&self, value: bool) {
         self.print_infos
+            .store(value, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn set_print_debug(&self, value: bool) {
+        self.print_debug
             .store(value, std::sync::atomic::Ordering::SeqCst);
     }
 }
@@ -135,6 +142,16 @@ impl MyLogger {
                     write_log(&log_event)
                 }
             }
+
+            LogLevel::Debug => {
+                if self
+                    .to_console_filter
+                    .print_debug
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    write_log(&log_event)
+                }
+            }
         }
 
         if self
@@ -179,6 +196,15 @@ impl Logger for MyLogger {
         ctx: Option<HashMap<String, String>>,
     ) {
         self.write_log(LogLevel::FatalError, process, message, ctx);
+    }
+
+    fn write_debug_info(
+        &self,
+        process: String,
+        message: String,
+        ctx: Option<HashMap<String, String>>,
+    ) {
+        self.write_log(LogLevel::Debug, process, message, ctx);
     }
 }
 
