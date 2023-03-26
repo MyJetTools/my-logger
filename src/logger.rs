@@ -3,10 +3,10 @@ use std::{
     sync::{atomic::AtomicBool, Arc},
 };
 
-use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger};
+use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString};
 use tokio::sync::Mutex;
 
-use crate::{MyLogEvent, MyLoggerReader};
+use crate::{LogEventCtx, MyLogEvent, MyLoggerReader};
 
 use super::LogLevel;
 
@@ -90,7 +90,7 @@ impl MyLogger {
             .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 
-    pub fn write_log(
+    fn write_log(
         &self,
         level: LogLevel,
         process: String,
@@ -168,6 +168,76 @@ impl MyLogger {
                 }
             });
         }
+    }
+
+    pub fn write_info<'s>(
+        &self,
+        process: impl Into<StrOrString<'static>>,
+        message: impl Into<StrOrString<'s>>,
+        ctx: LogEventCtx,
+    ) {
+        self.write_log(
+            LogLevel::Info,
+            process.into().to_string(),
+            message.into().to_string(),
+            ctx.get_result(),
+        );
+    }
+
+    pub fn write_warning<'s>(
+        &self,
+        process: impl Into<StrOrString<'static>>,
+        message: impl Into<StrOrString<'s>>,
+        ctx: LogEventCtx,
+    ) {
+        self.write_log(
+            LogLevel::Warning,
+            process.into().to_string(),
+            message.into().to_string(),
+            ctx.get_result(),
+        );
+    }
+
+    pub fn write_error<'s>(
+        &self,
+        process: impl Into<StrOrString<'static>>,
+        message: impl Into<StrOrString<'s>>,
+        ctx: LogEventCtx,
+    ) {
+        self.write_log(
+            LogLevel::Error,
+            process.into().to_string(),
+            message.into().to_string(),
+            ctx.get_result(),
+        );
+    }
+
+    pub fn write_fatal_error<'s>(
+        &self,
+        process: impl Into<StrOrString<'static>>,
+        message: impl Into<StrOrString<'s>>,
+        ctx: LogEventCtx,
+    ) {
+        self.write_log(
+            LogLevel::FatalError,
+            process.into().to_string(),
+            message.into().to_string(),
+            ctx.get_result(),
+        );
+    }
+
+    pub fn write_fatal_debug<'s>(
+        &self,
+        process: impl Into<StrOrString<'static>>,
+        message: impl Into<StrOrString<'s>>,
+        ctx: LogEventCtx,
+    ) {
+        self.write_log(
+            LogLevel::Debug,
+            process.into().to_string(),
+            message.into().to_string(),
+            ctx.get_result(),
+        );
     }
 }
 
