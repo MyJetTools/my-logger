@@ -62,3 +62,13 @@ my_logger::LOGGER.write_fatal_debug("process_name",
 
 ```
 
+### How to configure
+Some context values can be pre-populated by adding the line in the **fn main()**
+```rust
+   my_logger::LOGGER.populate_params("key","value");
+   my_logger::LOGGER.populate_params("key2","value2");   
+```
+To configure application name and version method can be used
+```rust
+   my_logger::LOGGER.populate_app_and_version(env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_VERSION"));
+```
