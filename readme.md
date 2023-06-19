@@ -3,7 +3,16 @@
 
 ### How to use it in your application
 
-Just write such kinds of codes at any places inside your code
+
+Plug it
+
+```toml
+[dependencies]
+my-logger = { tag = "max_version", git = "https://github.com/MyJetTools/my-logger.git" }
+```
+
+
+Put one of these lines at any place in your code
 ```rust
 
 // writing information line
