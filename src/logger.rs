@@ -25,18 +25,12 @@ impl MyLogger {
         }
     }
 
-    pub async fn plug_reader(
-        self,
-        reader: Arc<dyn MyLoggerReader + Send + Sync + 'static>,
-    ) -> Self {
-        {
-            let mut write_access = self.inner.lock().await;
-            write_access.register_reader(reader);
-        }
+    pub async fn plug_reader(&self, reader: Arc<dyn MyLoggerReader + Send + Sync + 'static>) {
+        let mut write_access = self.inner.lock().await;
+        write_access.register_reader(reader);
+
         self.reader_is_plugged
             .store(true, std::sync::atomic::Ordering::SeqCst);
-
-        self
     }
 
     pub async fn populate_params(
