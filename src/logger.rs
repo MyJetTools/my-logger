@@ -44,6 +44,18 @@ impl MyLogger {
         write_access.populate_params(key.to_string(), value.to_string());
     }
 
+    pub async fn get_populated_params(&self) -> Option<HashMap<String, String>> {
+        let read_access = self.inner.lock().await;
+
+        let populated_params = read_access.get_populated_params();
+
+        if populated_params.is_empty() {
+            None
+        } else {
+            Some(populated_params.clone())
+        }
+    }
+
     fn write_log(
         &self,
         level: LogLevel,
@@ -117,10 +129,9 @@ impl MyLogger {
 
             tokio::spawn(async move {
                 let read_access = inner.lock().await;
+
                 for reader in read_access.get_readers() {
-                    reader
-                        .write_log(log_event.clone(), read_access.get_populated_params())
-                        .await;
+                    reader.write_log(log_event.clone()).await;
                 }
             });
         }
