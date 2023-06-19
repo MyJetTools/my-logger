@@ -8,10 +8,10 @@ pub struct MyLoggerInner {
 }
 
 impl MyLoggerInner {
-    pub fn new() -> Self {
+    pub fn new(populated_params: HashMap<String, String>) -> Self {
         Self {
             readers: Vec::new(),
-            populated_params: HashMap::new(),
+            populated_params,
         }
     }
 

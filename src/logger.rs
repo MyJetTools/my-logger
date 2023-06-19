@@ -19,10 +19,20 @@ pub struct MyLogger {
 impl MyLogger {
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(MyLoggerInner::new())),
+            inner: Arc::new(Mutex::new(MyLoggerInner::new(HashMap::new()))),
             to_console_filter: ConsoleFilter::new(),
             reader_is_plugged: AtomicBool::new(false),
         }
+    }
+
+    pub async fn populate_app_and_version(
+        &self,
+        app_name: impl Into<StrOrString<'static>>,
+        app_version: impl Into<StrOrString<'static>>,
+    ) {
+        let mut write_access = self.inner.lock().await;
+        write_access.populate_params("Application".to_string(), app_name.into().to_string());
+        write_access.populate_params("Version".to_string(), app_version.into().to_string());
     }
 
     pub async fn plug_reader(&self, reader: Arc<dyn MyLoggerReader + Send + Sync + 'static>) {
@@ -34,17 +44,15 @@ impl MyLogger {
     }
 
     pub async fn populate_params(
-        self,
+        &self,
         key: impl Into<StrOrString<'static>>,
         value: impl Into<StrOrString<'static>>,
-    ) -> Self {
+    ) {
         let key: StrOrString<'static> = key.into();
         let value: StrOrString<'static> = value.into();
-        {
-            let mut write_access = self.inner.lock().await;
-            write_access.populate_params(key.to_string(), value.to_string());
-        }
-        self
+
+        let mut write_access = self.inner.lock().await;
+        write_access.populate_params(key.to_string(), value.to_string());
     }
 
     pub async fn get_populated_params(&self) -> Option<HashMap<String, String>> {
