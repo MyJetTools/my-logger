@@ -75,6 +75,6 @@ To configure application name and version method can be used
 ```rust
 #[tokio::main]
 async fn main() {
-   my_logger::LOGGER.populate_app_and_version(env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_VERSION"));
+   my_logger::LOGGER.populate_app_and_version(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 }
 ```
