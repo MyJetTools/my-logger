@@ -40,7 +40,7 @@ impl MyLogger {
         write_access.register_reader(reader);
 
         self.reader_is_plugged
-            .store(true, std::sync::atomic::Ordering::SeqCst);
+            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub async fn populate_params(
