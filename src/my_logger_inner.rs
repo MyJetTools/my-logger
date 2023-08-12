@@ -23,10 +23,8 @@ impl MyLoggerInner {
         self.readers.push(reader);
     }
 
-    pub fn get_readers(
-        &self,
-    ) -> impl Iterator<Item = &Arc<dyn MyLoggerReader + Send + Sync + 'static>> {
-        self.readers.iter()
+    pub fn get_readers(&self) -> &[Arc<dyn MyLoggerReader + Send + Sync + 'static>] {
+        self.readers.as_slice()
     }
 
     pub fn get_populated_params(&self) -> &HashMap<String, String> {

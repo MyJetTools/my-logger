@@ -9,6 +9,11 @@ impl LogEventCtx {
         Self(None)
     }
 
+    pub fn from_object(key: impl Into<StrOrString<'static>>, value: &impl std::fmt::Debug) -> Self {
+        let result = Self::new();
+        result.add_object(key, value)
+    }
+
     pub fn add<'s>(
         mut self,
         key: impl Into<StrOrString<'static>>,
@@ -25,6 +30,14 @@ impl LogEventCtx {
             .unwrap()
             .insert(key.to_string(), value.to_string());
         self
+    }
+
+    pub fn add_object(
+        self,
+        key: impl Into<StrOrString<'static>>,
+        value: &impl std::fmt::Debug,
+    ) -> Self {
+        self.add(key, format!("{:?}", value))
     }
 
     pub fn get_result(self) -> Option<HashMap<String, String>> {
