@@ -50,3 +50,9 @@ impl Into<LogEventCtx> for Option<LogEventCtx> {
         self.unwrap_or_else(LogEventCtx::new)
     }
 }
+
+impl Clone for LogEventCtx {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
