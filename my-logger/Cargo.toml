@@ -1,0 +1,13 @@
+[package]
+name = "my-logger"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+my-seq-logger = ["dep:my-seq-logger"]
+
+[dependencies]
+my-logger-core = { path = "../my-logger-core" }
+my-seq-logger = {optional = true, path = "../my-seq-logger" }
