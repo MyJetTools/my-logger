@@ -2,7 +2,7 @@ extern crate my_logger_core;
 
 pub use my_logger_core::*;
 #[macro_export]
-macro_rules! log_debug {
+macro_rules! write_log_debug {
     (
         $process:expr,
         $message:expr,
@@ -24,7 +24,7 @@ macro_rules! log_debug {
 }
 
 #[macro_export]
-macro_rules! log_err {
+macro_rules! write_log_err {
     (
         $process:expr,
         $message:expr,
@@ -46,7 +46,7 @@ macro_rules! log_err {
 }
 
 #[macro_export]
-macro_rules! log_warning {
+macro_rules! write_log_warning {
     (
         $process:expr,
         $message:expr,
@@ -68,7 +68,7 @@ macro_rules! log_warning {
 }
 
 #[macro_export]
-macro_rules! log_fatal {
+macro_rules! write_log_fatal {
     (
         $process:expr,
         $message:expr,
@@ -90,7 +90,7 @@ macro_rules! log_fatal {
 }
 
 #[macro_export]
-macro_rules! log_info {
+macro_rules! write_log_info {
     (
         $process:expr,
         $message:expr,
