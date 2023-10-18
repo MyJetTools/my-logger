@@ -59,7 +59,7 @@ impl MyLogger {
         }
     }
 
-    fn write_log(
+    pub fn write_log(
         &self,
         level: LogLevel,
         process: String,
