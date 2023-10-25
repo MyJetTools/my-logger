@@ -90,7 +90,7 @@ async fn read_log(logger: Arc<SeqLogger>, populated_params: Option<HashMap<Strin
         match events {
             Some(events) => {
                 let upload_result = super::sdk::push_logs_data(
-                    settings.url.as_str(),
+                    settings.url.to_string(),
                     settings.api_key.as_ref(),
                     populated_params.as_ref(),
                     events,

@@ -8,7 +8,7 @@ use rust_extensions::StrOrString;
 const CLEF_PARAM: Option<StrOrString<'_>> = None;
 
 pub async fn push_logs_data(
-    url: &str,
+    url: String,
     api_key: Option<&String>,
     fields_to_populate: Option<&HashMap<String, String>>,
     data: Vec<Arc<MyLogEvent>>,
