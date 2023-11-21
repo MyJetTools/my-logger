@@ -34,7 +34,7 @@ pub async fn push_logs_data(
 
     if std::env::var("SEQ_DEBUG").is_ok() {
         println!("Result: {}", result.get_status_code());
-        let body = result.get_body().await?;
+        let body = result.get_body_as_slice().await?;
         println!("Body: {}", std::str::from_utf8(&body).unwrap());
     }
 
