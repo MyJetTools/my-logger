@@ -89,11 +89,13 @@ async fn read_log(logger: Arc<SeqLogger>, populated_params: Option<HashMap<Strin
 
         match events {
             Some(events) => {
+                let seq_debug = std::env::var("SEQ_DEBUG").is_ok();
                 let upload_result = super::sdk::push_logs_data(
                     settings.url.to_string(),
                     settings.api_key.as_ref(),
                     populated_params.as_ref(),
                     events,
+                    seq_debug,
                 )
                 .await;
 

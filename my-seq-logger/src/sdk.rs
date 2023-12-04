@@ -3,36 +3,39 @@ use std::{collections::HashMap, sync::Arc};
 use flurl::{FlUrl, FlUrlError};
 use my_json::json_writer::JsonObjectWriter;
 use my_logger_core::MyLogEvent;
-use rust_extensions::StrOrString;
 
-const CLEF_PARAM: Option<StrOrString<'_>> = None;
+const NULL_PARAM: Option<&str> = None;
 
 pub async fn push_logs_data(
     url: String,
     api_key: Option<&String>,
     fields_to_populate: Option<&HashMap<String, String>>,
     data: Vec<Arc<MyLogEvent>>,
+    seq_debug: bool,
 ) -> Result<(), FlUrlError> {
     let body = compile_body(fields_to_populate, data);
 
-    #[cfg(feature = "debug-http")]
-    println!("Sending log: {}", std::str::from_utf8(&body).unwrap());
+    if seq_debug {
+        println!("Sending log: {}", std::str::from_utf8(&body).unwrap());
+    }
 
     let mut fl_url = FlUrl::new(url)
         .append_path_segment("api")
         .append_path_segment("events")
-        .append_path_segment("raw");
+        .append_path_segment("raw")
+        .with_header("Accept", "*/*")
+        .with_header("Content-Type", "application/vnd.serilog.clef");
 
     if let Some(api_key) = api_key {
         fl_url = fl_url.with_header("X-Seq-ApiKey", api_key);
     };
 
     let mut result = fl_url
-        .append_query_param("clef", CLEF_PARAM)
+        .append_query_param("clef", NULL_PARAM)
         .post(Some(body))
         .await?;
 
-    if std::env::var("SEQ_DEBUG").is_ok() {
+    if seq_debug {
         println!("Result: {}", result.get_status_code());
         let body = result.get_body_as_slice().await?;
         println!("Body: {}", std::str::from_utf8(&body).unwrap());
@@ -59,7 +62,7 @@ fn compile_body(
         };
 
         json_writer.write_value("@l", level_as_str);
-        json_writer.write_value("@t", log_data.dt.to_rfc3339().as_str());
+        json_writer.write_value("@t", &log_data.dt.to_rfc3339()[..26]);
         json_writer.write_value("Process", log_data.process.as_str());
         json_writer.write_value("@m", &log_data.message);
 
@@ -137,10 +140,8 @@ mod test {
     use my_logger_core::MyLogEvent;
     use rust_extensions::date_time::DateTimeAsMicroseconds;
 
-    use super::compile_body;
-
-    #[test]
-    fn test() {
+    #[tokio::test]
+    async fn test() {
         let mut ctx = HashMap::new();
 
         ctx.insert("HostPort".to_string(), "10.0.0.3:5125".to_string());
@@ -152,8 +153,15 @@ mod test {
             message: "Process".to_string(),
             context: Some(ctx),
         };
-        let body = compile_body(None, vec![Arc::new(log_event)]);
 
-        println!("{}", std::str::from_utf8(&body).unwrap());
+        super::push_logs_data(
+            "http://192.168.1.67:5345".to_string(),
+            None,
+            None,
+            vec![Arc::new(log_event)],
+            true,
+        )
+        .await
+        .unwrap();
     }
 }
