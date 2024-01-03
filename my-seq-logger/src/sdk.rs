@@ -7,10 +7,10 @@ use my_logger_core::MyLogEvent;
 const NULL_PARAM: Option<&str> = None;
 
 pub async fn push_logs_data(
-    url: String,
+    url: &str,
     api_key: Option<&String>,
     fields_to_populate: Option<&HashMap<String, String>>,
-    data: Vec<Arc<MyLogEvent>>,
+    data: &[Arc<MyLogEvent>],
     seq_debug: bool,
 ) -> Result<(), FlUrlError> {
     let body = compile_body(fields_to_populate, data);
@@ -46,7 +46,7 @@ pub async fn push_logs_data(
 
 fn compile_body(
     fields_to_populate: Option<&HashMap<String, String>>,
-    data: Vec<Arc<MyLogEvent>>,
+    data: &[Arc<MyLogEvent>],
 ) -> Vec<u8> {
     let mut result = Vec::new();
 
@@ -155,10 +155,10 @@ mod test {
         };
 
         super::push_logs_data(
-            "http://192.168.1.67:5345".to_string(),
+            "http://192.168.1.67:5345",
             None,
             None,
-            vec![Arc::new(log_event)],
+            &vec![Arc::new(log_event)],
             true,
         )
         .await

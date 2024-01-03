@@ -1,13 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
 use my_logger_core::{LogEventCtx, MyLogEvent, MyLoggerReader};
-use rust_extensions::auto_shrink::VecAutoShrink;
 use tokio::sync::Mutex;
 
 use crate::{SeqLoggerSettings, SeqSettings};
 
 pub struct SeqLogger {
-    log_events: Arc<Mutex<VecAutoShrink<Arc<MyLogEvent>>>>,
+    log_events: Arc<Mutex<Option<Vec<Arc<MyLogEvent>>>>>,
     settings: Arc<dyn SeqSettings + Send + Sync + 'static>,
 }
 
@@ -28,7 +27,7 @@ impl SeqLogger {
         }));
 
         let seq_logger = Self {
-            log_events: Arc::new(Mutex::new(VecAutoShrink::new(32))),
+            log_events: Arc::new(Mutex::new(None)),
             settings,
         };
 
@@ -49,7 +48,12 @@ impl SeqLogger {
 impl MyLoggerReader for SeqLogger {
     async fn write_log(&self, log_event: Arc<MyLogEvent>) {
         let mut write_access = self.log_events.lock().await;
-        write_access.push(log_event);
+        if write_access.is_none() {
+            let mut new_vec = Vec::new();
+            new_vec.reserve_exact(16);
+            *write_access = Some(new_vec);
+        }
+        write_access.as_mut().unwrap().push(log_event);
     }
 }
 
@@ -57,60 +61,56 @@ async fn read_log(logger: Arc<SeqLogger>, populated_params: Option<HashMap<Strin
     let conn_string = logger.settings.get_conn_string().await;
     let mut settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
 
-    let write_debug = std::env::var("DEBUG").is_ok();
-
     loop {
         let events = {
             let mut events = logger.log_events.lock().await;
 
-            if events.len() == 0 {
+            if events.is_none() {
                 None
             } else {
-                let mut result_events = Vec::new();
-
-                while events.len() > 0 {
-                    let event = events.remove(0);
-
-                    if let my_logger_core::LogLevel::Debug = event.level {
-                        if !write_debug {
-                            continue;
-                        }
-                    }
-
-                    result_events.push(event);
-
-                    if result_events.len() >= settings.max_logs_flush_chunk {
-                        break;
-                    }
-                }
-
-                Some(result_events)
+                events.take()
             }
         };
 
-        match events {
-            Some(events) => {
-                let seq_debug = std::env::var("SEQ_DEBUG").is_ok();
+        if events.is_none() {
+            tokio::time::sleep(settings.flush_delay).await;
+        }
+
+        let seq_debug = std::env::var("SEQ_DEBUG").is_ok();
+
+        let events = events.unwrap();
+
+        if events.len() <= settings.max_logs_flush_chunk {
+            let upload_result = super::sdk::push_logs_data(
+                &settings.url,
+                settings.api_key.as_ref(),
+                populated_params.as_ref(),
+                &events,
+                seq_debug,
+            )
+            .await;
+
+            if let Err(err) = upload_result {
+                println!("Error while uploading logs to seq. Err: {:?}", err);
+                let conn_string = logger.settings.get_conn_string().await;
+                settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
+            }
+        } else {
+            for chunk in events.chunks(settings.max_logs_flush_chunk) {
                 let upload_result = super::sdk::push_logs_data(
-                    settings.url.to_string(),
+                    &settings.url,
                     settings.api_key.as_ref(),
                     populated_params.as_ref(),
-                    events,
+                    chunk,
                     seq_debug,
                 )
                 .await;
 
-                match upload_result {
-                    Ok(_) => {}
-                    Err(err) => {
-                        println!("Error while uploading logs to seq. Err: {:?}", err);
-                        let conn_string = logger.settings.get_conn_string().await;
-                        settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
-                    }
+                if let Err(err) = upload_result {
+                    println!("Error while uploading logs to seq. Err: {:?}", err);
+                    let conn_string = logger.settings.get_conn_string().await;
+                    settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
                 }
-            }
-            None => {
-                tokio::time::sleep(settings.flush_delay).await;
             }
         }
     }
