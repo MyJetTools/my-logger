@@ -1,12 +1,13 @@
 use std::{collections::HashMap, sync::Arc};
 
 use my_logger_core::{LogEventCtx, MyLogEvent, MyLoggerReader};
+use rust_extensions::auto_shrink::VecAutoShrink;
 use tokio::sync::Mutex;
 
 use crate::{SeqLoggerSettings, SeqSettings};
 
 pub struct SeqLogger {
-    log_events: Arc<Mutex<Vec<Arc<MyLogEvent>>>>,
+    log_events: Arc<Mutex<VecAutoShrink<Arc<MyLogEvent>>>>,
     settings: Arc<dyn SeqSettings + Send + Sync + 'static>,
 }
 
@@ -27,7 +28,7 @@ impl SeqLogger {
         }));
 
         let seq_logger = Self {
-            log_events: Arc::new(Mutex::new(Vec::new())),
+            log_events: Arc::new(Mutex::new(VecAutoShrink::new(32))),
             settings,
         };
 
