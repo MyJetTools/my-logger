@@ -74,6 +74,7 @@ async fn read_log(logger: Arc<SeqLogger>, populated_params: Option<HashMap<Strin
 
         if events.is_none() {
             tokio::time::sleep(settings.flush_delay).await;
+            continue;
         }
 
         let seq_debug = std::env::var("SEQ_DEBUG").is_ok();

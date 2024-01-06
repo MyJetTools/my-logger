@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use flurl::{FlUrl, FlUrlError};
-use my_json::json_writer::JsonObjectWriter;
+use my_json::json_writer::{JsonObjectWriter, RawJsonObject};
 use my_logger_core::MyLogEvent;
 
 const NULL_PARAM: Option<&str> = None;
@@ -61,18 +61,18 @@ fn compile_body(
             my_logger_core::LogLevel::Debug => "Debug",
         };
 
-        json_writer.write_value("@l", level_as_str);
-        json_writer.write_value("@t", &log_data.dt.to_rfc3339()[..26]);
-        json_writer.write_value("Process", log_data.process.as_str());
-        json_writer.write_value("@m", &log_data.message);
+        json_writer.write("@l", level_as_str);
+        json_writer.write("@t", &log_data.dt.to_rfc3339()[..26]);
+        json_writer.write("Process", log_data.process.as_str());
+        json_writer.write("@m", &log_data.message);
 
         if let Some(fields_to_populate) = fields_to_populate {
             if let Some(ex) = fields_to_populate.get("Location") {
-                json_writer.write_value("@x", ex);
+                json_writer.write("@x", ex);
             }
 
             for (key, value) in fields_to_populate {
-                json_writer.write_value(key, value);
+                json_writer.write(key, value);
             }
         }
 
@@ -80,10 +80,11 @@ fn compile_body(
             for (key, value) in ctx {
                 match get_context_type(value.as_str()) {
                     ContextType::String => {
-                        json_writer.write_value(key, format_value(value));
+                        json_writer.write(key, format_value(value));
                     }
                     ContextType::Raw => {
-                        json_writer.write_raw_value(key, value.as_bytes());
+                        let raw_value = RawJsonObject::AsSlice(value.as_bytes());
+                        json_writer.write(key, raw_value);
                     }
                 }
             }
