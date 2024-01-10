@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use my_logger_core::{LogEventCtx, MyLogEvent, MyLoggerReader};
 use tokio::sync::Mutex;
@@ -81,38 +81,57 @@ async fn read_log(logger: Arc<SeqLogger>, populated_params: Option<HashMap<Strin
 
         let events = events.unwrap();
 
-        if events.len() <= settings.max_logs_flush_chunk {
-            let upload_result = super::sdk::push_logs_data(
-                &settings.url,
-                settings.api_key.as_ref(),
-                populated_params.as_ref(),
-                &events,
-                seq_debug,
-            )
-            .await;
+        let mut amount = 0;
 
-            if let Err(err) = upload_result {
-                println!("Error while uploading logs to seq. Err: {:?}", err);
-                let conn_string = logger.settings.get_conn_string().await;
-                settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
-            }
-        } else {
-            for chunk in events.chunks(settings.max_logs_flush_chunk) {
+        loop {
+            amount += 1;
+            if events.len() <= settings.max_logs_flush_chunk {
                 let upload_result = super::sdk::push_logs_data(
                     &settings.url,
                     settings.api_key.as_ref(),
                     populated_params.as_ref(),
-                    chunk,
+                    &events,
                     seq_debug,
                 )
                 .await;
 
-                if let Err(err) = upload_result {
-                    println!("Error while uploading logs to seq. Err: {:?}", err);
-                    let conn_string = logger.settings.get_conn_string().await;
-                    settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
+                if upload_result.is_ok() {
+                    return;
+                }
+
+                if amount > 3 {
+                    if let Err(err) = upload_result {
+                        println!("Error while uploading logs to seq. Err: {:?}", err);
+                    }
+                    return;
+                }
+            } else {
+                for chunk in events.chunks(settings.max_logs_flush_chunk) {
+                    let upload_result = super::sdk::push_logs_data(
+                        &settings.url,
+                        settings.api_key.as_ref(),
+                        populated_params.as_ref(),
+                        chunk,
+                        seq_debug,
+                    )
+                    .await;
+
+                    if upload_result.is_ok() {
+                        return;
+                    }
+
+                    if amount > 3 {
+                        if let Err(err) = upload_result {
+                            println!("Error while uploading logs to seq. Err: {:?}", err);
+                        }
+                        return;
+                    }
                 }
             }
+
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            let conn_string = logger.settings.get_conn_string().await;
+            settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
         }
     }
 }
