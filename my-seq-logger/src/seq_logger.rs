@@ -58,9 +58,8 @@ impl MyLoggerReader for SeqLogger {
 }
 
 async fn read_log(logger: Arc<SeqLogger>, populated_params: Option<HashMap<String, String>>) {
-    let conn_string = logger.settings.get_conn_string().await;
+    let mut conn_string = logger.settings.get_conn_string().await;
     let mut settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
-
     loop {
         let events = {
             let mut events = logger.log_events.lock().await;
@@ -81,16 +80,49 @@ async fn read_log(logger: Arc<SeqLogger>, populated_params: Option<HashMap<Strin
 
         let events = events.unwrap();
 
-        let mut amount = 0;
+        push_it_out(events, &mut settings, seq_debug, populated_params.as_ref()).await;
 
-        loop {
-            amount += 1;
-            if events.len() <= settings.max_logs_flush_chunk {
+        conn_string = logger.settings.get_conn_string().await;
+        settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
+    }
+}
+
+async fn push_it_out(
+    events: Vec<Arc<MyLogEvent>>,
+    settings: &mut SeqLoggerSettings,
+    seq_debug: bool,
+    populated_params: Option<&HashMap<String, String>>,
+) {
+    let mut amount = 0;
+    loop {
+        amount += 1;
+        if events.len() <= settings.max_logs_flush_chunk {
+            let upload_result = super::sdk::push_logs_data(
+                &settings.url,
+                settings.api_key.as_ref(),
+                populated_params,
+                &events,
+                seq_debug,
+            )
+            .await;
+
+            if upload_result.is_ok() {
+                break;
+            }
+
+            if amount > 3 {
+                if let Err(err) = upload_result {
+                    println!("Error while uploading logs to seq. Err: {:?}", err);
+                }
+                break;
+            }
+        } else {
+            for chunk in events.chunks(settings.max_logs_flush_chunk) {
                 let upload_result = super::sdk::push_logs_data(
                     &settings.url,
                     settings.api_key.as_ref(),
-                    populated_params.as_ref(),
-                    &events,
+                    populated_params,
+                    chunk,
                     seq_debug,
                 )
                 .await;
@@ -105,33 +137,9 @@ async fn read_log(logger: Arc<SeqLogger>, populated_params: Option<HashMap<Strin
                     }
                     return;
                 }
-            } else {
-                for chunk in events.chunks(settings.max_logs_flush_chunk) {
-                    let upload_result = super::sdk::push_logs_data(
-                        &settings.url,
-                        settings.api_key.as_ref(),
-                        populated_params.as_ref(),
-                        chunk,
-                        seq_debug,
-                    )
-                    .await;
-
-                    if upload_result.is_ok() {
-                        return;
-                    }
-
-                    if amount > 3 {
-                        if let Err(err) = upload_result {
-                            println!("Error while uploading logs to seq. Err: {:?}", err);
-                        }
-                        return;
-                    }
-                }
             }
-
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            let conn_string = logger.settings.get_conn_string().await;
-            settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
         }
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
