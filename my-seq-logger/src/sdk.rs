@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use flurl::{FlUrl, FlUrlError};
 use my_json::json_writer::{JsonObjectWriter, RawJsonObject};
 use my_logger_core::MyLogEvent;
+use rust_extensions::*;
 
 const NULL_PARAM: Option<&str> = None;
 
@@ -63,16 +64,19 @@ fn compile_body(
 
         json_writer.write("@l", level_as_str);
         json_writer.write("@t", &log_data.dt.to_rfc3339()[..26]);
-        json_writer.write("Process", log_data.process.as_str());
-        json_writer.write("@m", &log_data.message);
+        json_writer.write(
+            "Process",
+            format_seq_string(log_data.process.as_str()).as_str(),
+        );
+        json_writer.write("@m", format_seq_string(log_data.message.as_str()).as_str());
 
         if let Some(fields_to_populate) = fields_to_populate {
             if let Some(ex) = fields_to_populate.get("Location") {
-                json_writer.write("@x", ex);
+                json_writer.write("@x", format_seq_string(ex).as_str());
             }
 
             for (key, value) in fields_to_populate {
-                json_writer.write(key, value);
+                json_writer.write(key, format_seq_string(value).as_str());
             }
         }
 
@@ -80,7 +84,7 @@ fn compile_body(
             for (key, value) in ctx {
                 match get_context_type(value.as_str()) {
                     ContextType::String => {
-                        json_writer.write(key, format_value(value));
+                        json_writer.write(key, format_value(value).as_str());
                     }
                     ContextType::Raw => {
                         let raw_value = RawJsonObject::AsSlice(value.as_bytes());
@@ -101,16 +105,16 @@ fn compile_body(
     result
 }
 
-fn format_value(src: &str) -> String {
-    let mut result = String::with_capacity(src.len());
+fn format_value<'s>(src: &'s str) -> StrOrString<'s> {
+    let mut result = MaybeShortString::new();
 
-    for b in src.as_bytes() {
-        if *b >= 32 {
-            result.push(*b as char);
+    for b in src.chars() {
+        if b as u8 >= 32 {
+            result.push(b);
         }
     }
 
-    result
+    result.into()
 }
 
 pub enum ContextType {
@@ -132,6 +136,41 @@ fn get_context_type(src: &str) -> ContextType {
     }
 
     ContextType::String
+}
+
+fn format_seq_string<'s>(src: impl Into<StrOrString<'s>>) -> StrOrString<'s> {
+    let src: StrOrString<'s> = src.into();
+    let mut has_esc_symbol = false;
+
+    for c in src.as_str().chars() {
+        let as_u8 = c as u8;
+        if as_u8 < 32 {
+            has_esc_symbol = true;
+            break;
+        }
+    }
+
+    if !has_esc_symbol {
+        return src;
+    }
+
+    let mut result = MaybeShortString::new();
+
+    for c in src.as_str().chars() {
+        let as_u8 = c as u8;
+
+        if as_u8 < 32 {
+            if c == '\n' {
+                result.push_str("\\n");
+            } else if c == '\r' {
+                result.push_str("\\r");
+            }
+        } else {
+            result.push(c);
+        }
+    }
+
+    result.into()
 }
 
 #[cfg(test)]
