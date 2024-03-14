@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{atomic::AtomicU64, Arc},
+};
 
 use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString};
 use tokio::sync::Mutex;
@@ -9,6 +12,11 @@ use super::LogLevel;
 
 pub struct MyLogger {
     inner: Arc<Mutex<MyLoggerInner>>,
+    debugs: AtomicU64,
+    fatal_errors: AtomicU64,
+    errors: AtomicU64,
+    warnings: AtomicU64,
+    info: AtomicU64,
     pub to_console_filter: ConsoleFilter,
 }
 
@@ -17,6 +25,11 @@ impl MyLogger {
         Self {
             inner: Arc::new(Mutex::new(MyLoggerInner::new(HashMap::new()))),
             to_console_filter: ConsoleFilter::new(),
+            debugs: AtomicU64::new(0),
+            fatal_errors: AtomicU64::new(0),
+            errors: AtomicU64::new(0),
+            warnings: AtomicU64::new(0),
+            info: AtomicU64::new(0),
         }
     }
 
@@ -66,6 +79,28 @@ impl MyLogger {
         message: String,
         context: Option<HashMap<String, String>>,
     ) {
+        match level {
+            LogLevel::Info => {
+                self.info.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            LogLevel::Warning => {
+                self.warnings
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            LogLevel::Error => {
+                self.errors
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            LogLevel::FatalError => {
+                self.fatal_errors
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            LogLevel::Debug => {
+                self.debugs
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+        }
+
         let log_event = MyLogEvent {
             dt: DateTimeAsMicroseconds::now(),
             context,
@@ -208,6 +243,26 @@ impl MyLogger {
             message.into().to_string(),
             ctx.get_result(),
         );
+    }
+
+    pub fn get_errors_amount(&self) -> u64 {
+        self.errors.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn get_warnings_amount(&self) -> u64 {
+        self.warnings.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn get_fatal_errors_amount(&self) -> u64 {
+        self.fatal_errors.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn get_debugs_amount(&self) -> u64 {
+        self.debugs.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn get_infos_amount(&self) -> u64 {
+        self.info.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 
