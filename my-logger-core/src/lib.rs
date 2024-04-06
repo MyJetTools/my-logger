@@ -16,5 +16,4 @@ lazy_static::lazy_static! {
     pub static ref LOGGER: Arc<MyLogger> = {
         Arc::new(MyLogger::new())
     };
-
 }

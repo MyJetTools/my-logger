@@ -49,7 +49,7 @@ fn compile_body(
     fields_to_populate: Option<&HashMap<String, String>>,
     data: &[Arc<MyLogEvent>],
 ) -> Vec<u8> {
-    let mut result = Vec::new();
+    let mut result = String::new();
 
     for log_data in data {
         let mut json_writer = JsonObjectWriter::new();
@@ -87,7 +87,7 @@ fn compile_body(
                         json_writer.write(key, format_value(value).as_str());
                     }
                     ContextType::Raw => {
-                        let raw_value = RawJsonObject::AsSlice(value.as_bytes());
+                        let raw_value = RawJsonObject::AsStr(value);
                         json_writer.write(key, raw_value);
                     }
                 }
@@ -95,14 +95,14 @@ fn compile_body(
         }
 
         if result.len() > 0 {
-            result.push(13);
-            result.push(10);
+            result.push(13 as char);
+            result.push(10 as char);
         }
 
-        result.extend(json_writer.build());
+        result.push_str(json_writer.build().as_str());
     }
 
-    result
+    result.into_bytes()
 }
 
 fn format_value<'s>(src: &'s str) -> StrOrString<'s> {
@@ -127,11 +127,13 @@ fn get_context_type(src: &str) -> ContextType {
         return ContextType::Raw;
     }
 
-    if my_json::json_utils::is_number(src.as_bytes()) {
+    let number = my_json::json_utils::is_number(src.as_bytes());
+
+    if number.is_double() || number.is_number() {
         return ContextType::Raw;
     }
 
-    if my_json::json_utils::is_bool(src.as_bytes()).is_some() {
+    if my_json::json_utils::is_bool(src.as_bytes()) {
         return ContextType::Raw;
     }
 
