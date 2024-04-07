@@ -49,7 +49,7 @@ fn compile_body(
     fields_to_populate: Option<&HashMap<String, String>>,
     data: &[Arc<MyLogEvent>],
 ) -> Vec<u8> {
-    let mut result = String::new();
+    let mut result = Vec::new();
 
     for log_data in data {
         let mut json_writer = JsonObjectWriter::new();
@@ -95,14 +95,14 @@ fn compile_body(
         }
 
         if result.len() > 0 {
-            result.push(13 as char);
-            result.push(10 as char);
+            result.push(13);
+            result.push(10);
         }
 
-        result.push_str(json_writer.build().as_str());
+        result.extend_from_slice(json_writer.build().as_slice());
     }
 
-    result.into_bytes()
+    result
 }
 
 fn format_value<'s>(src: &'s str) -> StrOrString<'s> {

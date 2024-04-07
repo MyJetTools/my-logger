@@ -1,6 +1,2 @@
 [workspace]
-members = [
-    "my-logger",
-    "my-seq-logger",
-    "my-logger-core",
-]
+members = ["my-logger", "my-seq-logger", "my-logger-core"]
