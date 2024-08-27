@@ -12,16 +12,18 @@ pub struct SeqLogger {
 
 impl SeqLogger {
     pub fn enable_from_connection_string(settings: Arc<dyn SeqSettings + Send + Sync + 'static>) {
-        std::panic::set_hook(Box::new(|itm| {
+        std::panic::set_hook(Box::new(|panic_info| {
             let ctx = if let Some(location) = itm.location() {
                 LogEventCtx::new().add("Location", format!("{}", location))
             } else {
                 LogEventCtx::new()
             };
 
+            ctx.add_object("PanicInfo", panic_info);
+
             my_logger_core::LOGGER.write_fatal_error(
                 "Panic Handler",
-                format!("Panic info: {:?}", itm),
+                "Handle panic in hook",
                 ctx,
             );
         }));
