@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use rust_extensions::date_time::DateTimeAsMicroseconds;
+use rust_extensions::{date_time::DateTimeAsMicroseconds, UnsafeValue};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum LogLevel {
     Info,
     Warning,
@@ -21,6 +21,14 @@ impl LogLevel {
             LogLevel::Debug => "Debug",
         }
     }
+
+    pub fn is_error_or_fatal_error(&self) -> bool {
+        match self {
+            LogLevel::Error => true,
+            LogLevel::FatalError => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -30,4 +38,5 @@ pub struct MyLogEvent {
     pub process: String,
     pub message: String,
     pub context: Option<HashMap<String, String>>,
+    pub sent: UnsafeValue<bool>,
 }

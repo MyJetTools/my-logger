@@ -1,35 +1,40 @@
-use std::{
-    collections::HashMap,
-    sync::{atomic::AtomicU64, Arc},
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString};
-use tokio::sync::Mutex;
+use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString, UnsafeValue};
 
-use crate::{ConsoleFilter, LogEventCtx, MyLogEvent, MyLoggerInner, MyLoggerReader};
+use crate::{LogEventCtx, MyLogEvent, MyLoggerInner, MyLoggerReader};
 
 use super::LogLevel;
 
 pub struct MyLogger {
-    inner: Arc<Mutex<MyLoggerInner>>,
-    debugs: AtomicU64,
-    fatal_errors: AtomicU64,
-    errors: AtomicU64,
-    warnings: AtomicU64,
-    info: AtomicU64,
-    pub to_console_filter: ConsoleFilter,
+    inner: Arc<MyLoggerInner>,
 }
 
 impl MyLogger {
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(MyLoggerInner::new(HashMap::new()))),
-            to_console_filter: ConsoleFilter::new(),
-            debugs: AtomicU64::new(0),
-            fatal_errors: AtomicU64::new(0),
-            errors: AtomicU64::new(0),
-            warnings: AtomicU64::new(0),
-            info: AtomicU64::new(0),
+            inner: Arc::new(MyLoggerInner::new(HashMap::new())),
+        }
+    }
+
+    pub async fn wait_until_everything_is_written(&self) {
+        let now = DateTimeAsMicroseconds::now();
+
+        if now
+            .duration_since(self.inner.start_time)
+            .as_positive_or_zero()
+            < Duration::from_secs(30)
+        {
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        }
+
+        let readers = {
+            let inner = self.inner.log_readers.lock().await;
+            inner.get_readers().to_vec()
+        };
+
+        for reader in readers {
+            reader.wait_until_everything_sent().await;
         }
     }
 
@@ -38,13 +43,13 @@ impl MyLogger {
         app_name: impl Into<StrOrString<'static>>,
         app_version: impl Into<StrOrString<'static>>,
     ) {
-        let mut write_access = self.inner.lock().await;
+        let mut write_access = self.inner.log_readers.lock().await;
         write_access.populate_params("Application".to_string(), app_name.into().to_string());
         write_access.populate_params("Version".to_string(), app_version.into().to_string());
     }
 
     pub async fn plug_reader(&self, reader: Arc<dyn MyLoggerReader + Send + Sync + 'static>) {
-        let mut write_access = self.inner.lock().await;
+        let mut write_access = self.inner.log_readers.lock().await;
         write_access.register_reader(reader);
     }
 
@@ -56,12 +61,12 @@ impl MyLogger {
         let key: StrOrString<'static> = key.into();
         let value: StrOrString<'static> = value.into();
 
-        let mut write_access = self.inner.lock().await;
+        let mut write_access = self.inner.log_readers.lock().await;
         write_access.populate_params(key.to_string(), value.to_string());
     }
 
     pub async fn get_populated_params(&self) -> Option<HashMap<String, String>> {
-        let read_access = self.inner.lock().await;
+        let read_access = self.inner.log_readers.lock().await;
 
         let populated_params = read_access.get_populated_params();
 
@@ -79,100 +84,38 @@ impl MyLogger {
         message: String,
         context: Option<HashMap<String, String>>,
     ) {
-        match level {
-            LogLevel::Info => {
-                self.info.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            }
-            LogLevel::Warning => {
-                self.warnings
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            }
-            LogLevel::Error => {
-                self.errors
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            }
-            LogLevel::FatalError => {
-                self.fatal_errors
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            }
-            LogLevel::Debug => {
-                self.debugs
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            }
-        }
-
         let log_event = MyLogEvent {
             dt: DateTimeAsMicroseconds::now(),
             context,
             level,
             message,
             process,
+            sent: UnsafeValue::new(false),
         };
 
         let inner = self.inner.clone();
 
-        let print_infos = self
-            .to_console_filter
-            .print_infos
-            .load(std::sync::atomic::Ordering::Relaxed);
-
-        let print_warnings = self
-            .to_console_filter
-            .print_warnings
-            .load(std::sync::atomic::Ordering::Relaxed);
-
-        let print_errors = self
-            .to_console_filter
-            .print_errors
-            .load(std::sync::atomic::Ordering::Relaxed);
-
-        let print_fatal_errors = self
-            .to_console_filter
-            .print_fatal_errors
-            .load(std::sync::atomic::Ordering::Relaxed);
-
-        let print_debug = self
-            .to_console_filter
-            .print_debug
-            .load(std::sync::atomic::Ordering::Relaxed);
-
         tokio::spawn(async move {
-            let inner_read_access = inner.lock().await;
-            match &log_event.level {
-                LogLevel::Info => {
-                    if print_infos {
-                        write_log(&log_event).await;
-                    }
-                }
-                LogLevel::Warning => {
-                    if print_warnings {
-                        write_log(&log_event).await;
-                    }
-                }
-                LogLevel::Error => {
-                    if print_errors {
-                        write_log(&log_event).await;
-                    }
-                }
-                LogLevel::FatalError => {
-                    if print_fatal_errors {
-                        write_log(&log_event).await;
-                    }
-                }
-
-                LogLevel::Debug => {
-                    if print_debug {
-                        write_log(&log_event).await;
-                    }
-                }
-            }
-
+            inner.update_statistics(log_event.level);
+            let inner_read_access = inner.log_readers.lock().await;
+            inner.console_printer.print_to_console(&log_event);
             let log_event = Arc::new(log_event);
 
             for reader in inner_read_access.get_readers() {
                 reader.write_log(log_event.clone()).await;
             }
         });
+    }
+
+    pub async fn write_log_async(&self, log_event: Arc<MyLogEvent>) {
+        let inner = self.inner.clone();
+        self.inner.update_statistics(log_event.level);
+        let inner_read_access = inner.log_readers.lock().await;
+        inner.console_printer.print_to_console(&log_event);
+
+        for reader in inner_read_access.get_readers() {
+            reader.write_log(log_event.clone()).await;
+        }
     }
 
     pub fn write_info<'s>(
@@ -246,23 +189,38 @@ impl MyLogger {
     }
 
     pub fn get_errors_amount(&self) -> u64 {
-        self.errors.load(std::sync::atomic::Ordering::Relaxed)
+        self.inner
+            .statistics
+            .errors
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn get_warnings_amount(&self) -> u64 {
-        self.warnings.load(std::sync::atomic::Ordering::Relaxed)
+        self.inner
+            .statistics
+            .warnings
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn get_fatal_errors_amount(&self) -> u64 {
-        self.fatal_errors.load(std::sync::atomic::Ordering::Relaxed)
+        self.inner
+            .statistics
+            .fatal_errors
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn get_debugs_amount(&self) -> u64 {
-        self.debugs.load(std::sync::atomic::Ordering::Relaxed)
+        self.inner
+            .statistics
+            .debugs
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn get_infos_amount(&self) -> u64 {
-        self.info.load(std::sync::atomic::Ordering::Relaxed)
+        self.inner
+            .statistics
+            .info
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 
@@ -301,16 +259,4 @@ impl Logger for MyLogger {
     ) {
         self.write_log(LogLevel::Debug, process, message, ctx);
     }
-}
-
-async fn write_log(log_event: &MyLogEvent) {
-    println!("{} {:?}", log_event.dt.to_rfc3339(), log_event.level);
-    println!("Process: {}", log_event.process);
-    println!("Message: {}", log_event.message);
-
-    if let Some(ctx) = &log_event.context {
-        println!("Context: {:?}", ctx);
-    }
-
-    println!("-------------------")
 }

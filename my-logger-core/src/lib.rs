@@ -1,12 +1,16 @@
-mod console_filter;
+mod console_printer;
 mod log_event;
 mod log_event_ctx;
+mod log_readers;
+mod log_statistics;
 mod logger;
 mod logger_reader;
 mod my_logger_inner;
-pub use console_filter::*;
+pub use console_printer::*;
 pub use log_event::{LogLevel, MyLogEvent};
 pub use log_event_ctx::*;
+pub use log_readers::*;
+pub use log_statistics::*;
 pub use logger::MyLogger;
 pub use logger_reader::MyLoggerReader;
 pub use my_logger_inner::*;

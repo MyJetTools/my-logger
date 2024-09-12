@@ -1,33 +1,55 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
-use crate::MyLoggerReader;
+use rust_extensions::date_time::DateTimeAsMicroseconds;
+use tokio::sync::Mutex;
+
+use crate::{ConsoleFilter, LogLevel, LogReaders, LogsStatistics};
 
 pub struct MyLoggerInner {
-    readers: Vec<Arc<dyn MyLoggerReader + Send + Sync + 'static>>,
-    populated_params: HashMap<String, String>,
+    pub console_printer: ConsoleFilter,
+    pub statistics: LogsStatistics,
+    pub log_readers: Mutex<LogReaders>,
+
+    pub start_time: DateTimeAsMicroseconds,
 }
 
 impl MyLoggerInner {
     pub fn new(populated_params: HashMap<String, String>) -> Self {
         Self {
-            readers: Vec::new(),
-            populated_params,
+            console_printer: ConsoleFilter::new(),
+            statistics: LogsStatistics::new(),
+            start_time: DateTimeAsMicroseconds::now(),
+            log_readers: Mutex::new(LogReaders::new(populated_params)),
         }
     }
 
-    pub fn populate_params(&mut self, key: String, value: String) {
-        self.populated_params.insert(key, value);
-    }
-
-    pub fn register_reader(&mut self, reader: Arc<dyn MyLoggerReader + Send + Sync + 'static>) {
-        self.readers.push(reader);
-    }
-
-    pub fn get_readers(&self) -> &[Arc<dyn MyLoggerReader + Send + Sync + 'static>] {
-        self.readers.as_slice()
-    }
-
-    pub fn get_populated_params(&self) -> &HashMap<String, String> {
-        &self.populated_params
+    pub fn update_statistics(&self, log_event: LogLevel) {
+        match log_event {
+            LogLevel::Info => {
+                self.statistics
+                    .info
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            LogLevel::Warning => {
+                self.statistics
+                    .warnings
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            LogLevel::Error => {
+                self.statistics
+                    .errors
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            LogLevel::FatalError => {
+                self.statistics
+                    .fatal_errors
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            LogLevel::Debug => {
+                self.statistics
+                    .debugs
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+        }
     }
 }
