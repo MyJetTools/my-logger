@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use flurl::{FlUrl, FlUrlError};
 use my_json::json_writer::{JsonObjectWriter, RawJsonObject};
@@ -21,6 +21,7 @@ pub async fn push_logs_data(
     }
 
     let mut fl_url = FlUrl::new(url)
+        .set_timeout(Duration::from_secs(3))
         .append_path_segment("api")
         .append_path_segment("events")
         .append_path_segment("raw")
