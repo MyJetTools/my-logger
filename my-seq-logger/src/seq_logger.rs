@@ -64,11 +64,13 @@ impl SeqLogger {
             let now = DateTimeAsMicroseconds::now();
 
             if now.duration_since(started).as_positive_or_zero() < Duration::from_secs(15) {
-                loop {
+                let mut no = 0;
+                while no < 10 {
                     if event.sent.get_value() {
                         break;
                     }
                     std::thread::sleep(Duration::from_millis(100));
+                    no += 1;
                 }
             }
         }));
