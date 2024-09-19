@@ -21,7 +21,7 @@ pub async fn push_logs_data(
     }
 
     let mut fl_url = FlUrl::new(url)
-        .set_timeout(Duration::from_secs(3))
+        .set_timeout(Duration::from_secs(10))
         .append_path_segment("api")
         .append_path_segment("events")
         .append_path_segment("raw")
