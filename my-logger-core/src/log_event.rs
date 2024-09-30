@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rust_extensions::{date_time::DateTimeAsMicroseconds, UnsafeValue};
+use rust_extensions::date_time::DateTimeAsMicroseconds;
 
 #[derive(Debug, Clone, Copy)]
 pub enum LogLevel {
@@ -38,5 +38,4 @@ pub struct MyLogEvent {
     pub process: String,
     pub message: String,
     pub context: Option<HashMap<String, String>>,
-    pub sent: UnsafeValue<bool>,
 }

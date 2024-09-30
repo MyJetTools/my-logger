@@ -1,82 +1,33 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use my_logger_core::{MyLogEvent, MyLoggerReader};
-use rust_extensions::{date_time::DateTimeAsMicroseconds, UnsafeValue};
+use my_logger_core::{LogEventCtx, MyLogEvent, MyLoggerReader};
 use tokio::sync::Mutex;
 
 use crate::{SeqLoggerSettings, SeqSettings};
 
-#[derive(Default)]
-pub struct SeqLoggerInner {
-    pub events: Option<Vec<Arc<MyLogEvent>>>,
-    pub wait_events: Vec<Arc<MyLogEvent>>,
-}
-
-impl SeqLoggerInner {
-    pub fn add_event(&mut self, log_event: Arc<MyLogEvent>) {
-        self.wait_events.push(log_event.clone());
-
-        match self.events.as_mut() {
-            Some(events) => {
-                events.push(log_event);
-            }
-            None => {
-                self.events = Some(vec![log_event]);
-            }
-        }
-    }
-
-    pub fn gc(&mut self) {
-        self.wait_events.retain(|itm| !itm.sent.get_value())
-    }
-}
-
 pub struct SeqLogger {
-    log_events: Arc<Mutex<SeqLoggerInner>>,
+    log_events: Arc<Mutex<Option<Vec<Arc<MyLogEvent>>>>>,
     settings: Arc<dyn SeqSettings + Send + Sync + 'static>,
 }
 
 impl SeqLogger {
     pub fn enable_from_connection_string(settings: Arc<dyn SeqSettings + Send + Sync + 'static>) {
-        let started = DateTimeAsMicroseconds::now();
-        std::panic::set_hook(Box::new(move |itm| {
-            let context = if let Some(location) = itm.location() {
-                let mut ctx = HashMap::new();
-                ctx.insert("Location".to_string(), format!("{}", location));
-                Some(ctx)
+        std::panic::set_hook(Box::new(|itm| {
+            let ctx = if let Some(location) = itm.location() {
+                LogEventCtx::new().add("Location", format!("{}", location))
             } else {
-                None
+                LogEventCtx::new()
             };
 
-            let event: Arc<_> = MyLogEvent {
-                level: my_logger_core::LogLevel::FatalError,
-                process: "Panic Handler".to_string(),
-                message: format!("Panic info: {:?}", itm),
-                context,
-                dt: DateTimeAsMicroseconds::now(),
-                sent: UnsafeValue::new(false),
-            }
-            .into();
-
-            let event_cloned = event.clone();
-            tokio::spawn(async move { my_logger_core::LOGGER.write_log_async(event_cloned) });
-
-            let now = DateTimeAsMicroseconds::now();
-
-            if now.duration_since(started).as_positive_or_zero() < Duration::from_secs(15) {
-                let mut no = 0;
-                while no < 10 {
-                    if event.sent.get_value() {
-                        break;
-                    }
-                    std::thread::sleep(Duration::from_millis(100));
-                    no += 1;
-                }
-            }
+            my_logger_core::LOGGER.write_fatal_error(
+                "Panic Handler",
+                format!("Panic info: {:?}", itm),
+                ctx,
+            );
         }));
 
         let seq_logger = Self {
-            log_events: Arc::new(Mutex::new(SeqLoggerInner::default())),
+            log_events: Arc::new(Mutex::new(None)),
             settings,
         };
 
@@ -89,7 +40,7 @@ impl SeqLogger {
 
         let params = my_logger_core::LOGGER.get_populated_params().await;
         println!("Seq writer is started");
-        to_server_push_loop(seq_logger, params).await;
+        read_log(seq_logger, params).await;
     }
 }
 
@@ -97,27 +48,27 @@ impl SeqLogger {
 impl MyLoggerReader for SeqLogger {
     async fn write_log(&self, log_event: Arc<MyLogEvent>) {
         let mut write_access = self.log_events.lock().await;
-        write_access.add_event(log_event);
-    }
-
-    async fn has_no_events(&self) -> bool {
-        let read_access = self.log_events.lock().await;
-        read_access.wait_events.is_empty()
+        if write_access.is_none() {
+            let mut new_vec = Vec::new();
+            new_vec.reserve_exact(16);
+            *write_access = Some(new_vec);
+        }
+        write_access.as_mut().unwrap().push(log_event);
     }
 }
 
-async fn to_server_push_loop(
-    logger: Arc<SeqLogger>,
-    populated_params: Option<HashMap<String, String>>,
-) {
+async fn read_log(logger: Arc<SeqLogger>, populated_params: Option<HashMap<String, String>>) {
     let mut conn_string = logger.settings.get_conn_string().await;
     let mut settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
-    let seq_debug = std::env::var("SEQ_DEBUG").is_ok();
     loop {
-        let events: Option<Vec<Arc<MyLogEvent>>> = {
-            let mut inner = logger.log_events.lock().await;
-            inner.gc();
-            inner.events.take()
+        let events = {
+            let mut events = logger.log_events.lock().await;
+
+            if events.is_none() {
+                None
+            } else {
+                events.take()
+            }
         };
 
         if events.is_none() {
@@ -125,19 +76,11 @@ async fn to_server_push_loop(
             continue;
         }
 
+        let seq_debug = std::env::var("SEQ_DEBUG").is_ok();
+
         let events = events.unwrap();
 
-        push_it_out(
-            events.as_slice(),
-            &mut settings,
-            seq_debug,
-            populated_params.as_ref(),
-        )
-        .await;
-
-        for event in events {
-            event.sent.set_value(true);
-        }
+        push_it_out(events, &mut settings, seq_debug, populated_params.as_ref()).await;
 
         conn_string = logger.settings.get_conn_string().await;
         settings = SeqLoggerSettings::parse(conn_string.as_str()).await;
@@ -145,7 +88,7 @@ async fn to_server_push_loop(
 }
 
 async fn push_it_out(
-    events: &[Arc<MyLogEvent>],
+    events: Vec<Arc<MyLogEvent>>,
     settings: &mut SeqLoggerSettings,
     seq_debug: bool,
     populated_params: Option<&HashMap<String, String>>,
@@ -192,7 +135,6 @@ async fn push_it_out(
                     if let Err(err) = upload_result {
                         println!("Error while uploading logs to seq. Err: {:?}", err);
                     }
-
                     return;
                 }
             }

@@ -195,7 +195,6 @@ mod test {
             process: "Process".to_string(),
             message: "Process".to_string(),
             context: Some(ctx),
-            sent: false.into(),
         };
 
         super::push_logs_data(

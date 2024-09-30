@@ -1,6 +1,6 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc};
 
-use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString, UnsafeValue};
+use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString};
 
 use crate::{LogEventCtx, MyLogEvent, MyLoggerInner, MyLoggerReader};
 
@@ -14,27 +14,6 @@ impl MyLogger {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(MyLoggerInner::new(HashMap::new())),
-        }
-    }
-
-    pub async fn wait_until_everything_is_written(&self) {
-        let now = DateTimeAsMicroseconds::now();
-
-        if now
-            .duration_since(self.inner.start_time)
-            .as_positive_or_zero()
-            < Duration::from_secs(30)
-        {
-            tokio::time::sleep(Duration::from_secs(10)).await;
-        }
-
-        let readers = {
-            let inner = self.inner.log_readers.lock().await;
-            inner.get_readers().to_vec()
-        };
-
-        for reader in readers {
-            reader.wait_until_everything_sent().await;
         }
     }
 
@@ -90,7 +69,6 @@ impl MyLogger {
             level,
             message,
             process,
-            sent: UnsafeValue::new(false),
         };
 
         let inner = self.inner.clone();
