@@ -152,7 +152,22 @@ impl MyLogger {
         );
     }
 
+    #[deprecated(note = "Use write_debug instead")]
     pub fn write_fatal_debug<'s>(
+        &self,
+        process: impl Into<StrOrString<'static>>,
+        message: impl Into<StrOrString<'s>>,
+        ctx: LogEventCtx,
+    ) {
+        self.write_log(
+            LogLevel::Debug,
+            process.into().to_string(),
+            message.into().to_string(),
+            ctx.get_result(),
+        );
+    }
+
+    pub fn write_debug<'s>(
         &self,
         process: impl Into<StrOrString<'static>>,
         message: impl Into<StrOrString<'s>>,
