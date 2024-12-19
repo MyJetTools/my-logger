@@ -28,15 +28,15 @@ impl FlUrlUploader {
 #[async_trait::async_trait]
 impl LogsChunkUploader for FlUrlUploader {
     async fn upload_chunk(&self, chunk_to_upload: &[u8]) {
-        println!("Uploading chunk of size: {}", chunk_to_upload.len());
         let mut attempt_no = 0;
         loop {
             attempt_no += 1;
             if self.seq_debug {
-                println!(
-                    "Sending log: {}",
-                    std::str::from_utf8(&chunk_to_upload).unwrap()
-                );
+                if chunk_to_upload.len() > 256 {
+                    println!("Sending log len={}", chunk_to_upload.len());
+                } else {
+                    println!("Sending log: [{:?}]", std::str::from_utf8(&chunk_to_upload));
+                }
             }
 
             let mut fl_url = FlUrl::new(self.url.as_str())
