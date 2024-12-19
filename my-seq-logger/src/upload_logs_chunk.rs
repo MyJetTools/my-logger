@@ -32,6 +32,10 @@ pub async fn upload_log_events_chunk(
             chunk_to_upload.extend_from_slice(payload.as_slice());
         }
     }
+
+    if chunk_to_upload.len() > 0 {
+        uploader.upload_chunk(chunk_to_upload.as_slice()).await;
+    }
 }
 
 #[cfg(test)]
