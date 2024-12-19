@@ -51,6 +51,7 @@ impl LogsChunkUploader for FlUrlUploader {
                 .with_retries(3);
 
             if self.compress {
+                println!("Compressing Logs");
                 fl_url = fl_url.compress();
             }
 
