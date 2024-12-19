@@ -17,28 +17,18 @@ impl LogEventsQueue {
     pub async fn enqueue(&self, log_event: Arc<MyLogEvent>) {
         let mut write_access = self.queue.lock().await;
 
-        match &mut *write_access {
-            Some(queue) => {
-                queue.push(log_event);
-            }
-            None => {
-                *write_access = Some(vec![log_event]);
-            }
+        if let Some(queue) = &mut *write_access {
+            queue.push(log_event);
+            return;
         }
+
+        let mut new_queue = Vec::new();
+        new_queue.push(log_event);
+        *write_access = Some(new_queue);
     }
 
-    pub async fn dequeue(&self, max_amount: usize) -> Option<Vec<Arc<MyLogEvent>>> {
+    pub async fn dequeue(&self) -> Option<Vec<Arc<MyLogEvent>>> {
         let mut write_access = self.queue.lock().await;
-
-        {
-            let write_access = write_access.as_mut()?;
-
-            if write_access.len() <= max_amount {
-                let result: Vec<_> = write_access.drain(..max_amount).collect();
-                return Some(result);
-            }
-        }
-
         write_access.take()
     }
 }

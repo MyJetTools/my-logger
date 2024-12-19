@@ -26,7 +26,7 @@ impl EventsLoopTick<()> for SeqLoggerInner {
     async fn tick(&self, _: ()) {
         let settings = SeqLoggerSettings::read(&self.settings).await;
 
-        let events = self.log_events.dequeue(settings.max_logs_flush_chunk).await;
+        let events = self.log_events.dequeue().await;
 
         if events.is_none() {
             return;
