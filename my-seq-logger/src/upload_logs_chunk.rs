@@ -24,11 +24,16 @@ pub async fn upload_log_events_chunk(
                 chunk_to_upload.push(13);
                 chunk_to_upload.push(10);
             }
-            chunk_to_upload.extend(payload);
+
+            println!("Payload {} to extend", payload.len());
+            chunk_to_upload.extend_from_slice(payload.as_slice());
+            println!("Payload {} to extended", payload.len());
         } else {
             uploader.upload_chunk(chunk_to_upload.as_slice()).await;
             chunk_to_upload.clear();
-            chunk_to_upload.extend(payload);
+            println!("Payload2 {} to extend", payload.len());
+            chunk_to_upload.extend_from_slice(payload.as_slice());
+            println!("Payload2 {} to extended", payload.len());
         }
     }
 }
