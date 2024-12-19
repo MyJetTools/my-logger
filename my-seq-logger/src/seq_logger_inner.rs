@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rust_extensions::events_loop::EventsLoopTick;
 
-use crate::{LogEventsQueue, SeqLoggerSettings, SeqSettings};
+use crate::{FlUrlUploader, LogEventsQueue, SeqLoggerSettings, SeqSettings};
 
 pub struct SeqLoggerInner {
     pub(crate) log_events: LogEventsQueue,
@@ -32,18 +32,16 @@ impl EventsLoopTick<()> for SeqLoggerInner {
             return;
         }
 
-        let seq_debug = std::env::var("SEQ_DEBUG").is_ok();
-
         let events = events.unwrap();
 
         let populated_params = my_logger_core::LOGGER.get_populated_params().await;
 
+        let fl_url_uploader = FlUrlUploader::new(settings.url, settings.api_key);
+
         crate::upload_logs_chunk::upload_log_events_chunk(
-            &settings.url,
-            settings.api_key,
+            &fl_url_uploader,
             populated_params,
             events,
-            seq_debug,
         )
         .await;
     }
