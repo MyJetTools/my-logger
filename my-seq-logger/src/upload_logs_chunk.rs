@@ -27,12 +27,12 @@ pub async fn upload_log_events_chunk(
                 chunk_to_upload.push(13);
                 chunk_to_upload.push(10);
             }
-            chunk_to_upload.extend_from_slice(payload.as_slice());
+            chunk_to_upload.extend(payload);
         } else {
             upload_current_chunk(url, chunk_to_upload.as_slice(), api_key.as_ref(), seq_debug)
                 .await;
             chunk_to_upload.clear();
-            chunk_to_upload.extend_from_slice(payload.as_slice());
+            chunk_to_upload.extend(payload);
         }
     }
 }
