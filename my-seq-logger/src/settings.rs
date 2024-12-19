@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 #[async_trait::async_trait]
 pub trait SeqSettings {
@@ -16,23 +16,21 @@ pub struct SeqLoggerSettings {
 }
 
 impl SeqLoggerSettings {
-    pub async fn parse(conn_string: &str) -> Self {
+    pub async fn read(settings: &Arc<dyn SeqSettings + Send + Sync + 'static>) -> Self {
         loop {
-            match Self::try_parse(conn_string) {
-                Ok(result) => {
-                    return result;
-                }
+            let conn_string = settings.get_conn_string().await;
+            let settings = SeqLoggerSettings::try_parse(conn_string.as_str());
+
+            match settings {
+                Ok(result) => return result,
                 Err(err) => {
-                    println!(
-                        "Error while parsing connection string. Err: {}. ConnString: {}",
-                        err, conn_string
-                    );
+                    println!("Can not parse Logs settings. Err: {:?}", err);
+                    tokio::time::sleep(Duration::from_secs(5)).await;
                 }
-            }
+            };
         }
     }
-
-    fn try_parse(conn_string: &str) -> Result<Self, String> {
+    pub fn try_parse(conn_string: &str) -> Result<Self, String> {
         let mut url = None;
         let mut api_key = None;
         let mut max_logs_flush_chunk = DEFAULT_FLUSH_CHUNK;

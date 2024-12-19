@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use rust_extensions::date_time::DateTimeAsMicroseconds;
 use tokio::sync::Mutex;
 
@@ -14,7 +12,7 @@ pub struct MyLoggerInner {
 }
 
 impl MyLoggerInner {
-    pub fn new(populated_params: HashMap<String, String>) -> Self {
+    pub fn new(populated_params: Vec<(String, String)>) -> Self {
         Self {
             console_printer: ConsoleFilter::new(),
             statistics: LogsStatistics::new(),

@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString};
 
-use crate::{LogEventCtx, MyLogEvent, MyLoggerInner, MyLoggerReader};
+use crate::{LogEventCtx, MyLogEvent, MyLoggerInner, MyLoggerReader, PopulatedParams};
 
 use super::LogLevel;
 
@@ -13,7 +13,7 @@ pub struct MyLogger {
 impl MyLogger {
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(MyLoggerInner::new(HashMap::new())),
+            inner: Arc::new(MyLoggerInner::new(Vec::new())),
         }
     }
 
@@ -44,16 +44,9 @@ impl MyLogger {
         write_access.populate_params(key.to_string(), value.to_string());
     }
 
-    pub async fn get_populated_params(&self) -> Option<HashMap<String, String>> {
+    pub async fn get_populated_params(&self) -> PopulatedParams {
         let read_access = self.inner.log_readers.lock().await;
-
-        let populated_params = read_access.get_populated_params();
-
-        if populated_params.is_empty() {
-            None
-        } else {
-            Some(populated_params.clone())
-        }
+        read_access.get_populated_params().clone()
     }
 
     pub fn write_log(
