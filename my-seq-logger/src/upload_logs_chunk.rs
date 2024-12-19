@@ -13,8 +13,10 @@ pub async fn upload_log_events_chunk(
 ) {
     let mut chunk_to_upload = Vec::new();
 
+    let mut payload = Vec::new();
+
     for log_event in data.iter() {
-        let payload = super::serialize(log_event, &populated_params);
+        payload = super::serialize(payload, log_event, &populated_params);
 
         let merge_slice =
             chunk_to_upload.len() == 0 || chunk_to_upload.len() + payload.len() < MAX_CHUNK_SIZE;
