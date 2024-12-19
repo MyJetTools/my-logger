@@ -26,15 +26,10 @@ impl ContextType {
     }
 }
 
-pub fn serialize(
-    mut payload_buffer: Vec<u8>,
-    log_event: &MyLogEvent,
-    populated_params: &PopulatedParams,
-) -> Vec<u8> {
+pub fn serialize(log_event: &MyLogEvent, populated_params: &PopulatedParams) -> Vec<u8> {
     const LOCATION_KEY: &'static str = "Location";
 
-    payload_buffer.clear();
-    let mut json_writer = JsonObjectWriter::from_vec(payload_buffer);
+    let mut json_writer = JsonObjectWriter::new();
 
     let level_as_str = match &log_event.level {
         my_logger_core::LogLevel::Info => "Info",

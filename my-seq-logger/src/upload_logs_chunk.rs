@@ -15,25 +15,24 @@ pub async fn upload_log_events_chunk(
     seq_debug: bool,
 ) {
     let mut chunk_to_upload = Vec::new();
-    let mut payload_buffer = Vec::new();
 
     for log_event in data.iter() {
-        payload_buffer = super::serialize(payload_buffer, log_event, &populated_params);
+        let payload = super::serialize(log_event, &populated_params);
 
-        let merge_slice = chunk_to_upload.len() == 0
-            || chunk_to_upload.len() + payload_buffer.len() < MAX_CHUNK_SIZE;
+        let merge_slice =
+            chunk_to_upload.len() == 0 || chunk_to_upload.len() + payload.len() < MAX_CHUNK_SIZE;
 
         if merge_slice {
             if chunk_to_upload.len() > 0 {
                 chunk_to_upload.push(13);
                 chunk_to_upload.push(10);
             }
-            chunk_to_upload.extend_from_slice(payload_buffer.as_slice());
+            chunk_to_upload.extend_from_slice(payload.as_slice());
         } else {
             upload_current_chunk(url, chunk_to_upload.as_slice(), api_key.as_ref(), seq_debug)
                 .await;
             chunk_to_upload.clear();
-            chunk_to_upload.extend_from_slice(payload_buffer.as_slice());
+            chunk_to_upload.extend_from_slice(payload.as_slice());
         }
     }
 }
