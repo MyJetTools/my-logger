@@ -50,8 +50,7 @@ impl LogsChunkUploader for FlUrlUploader {
                 .with_header("Content-Type", "application/vnd.serilog.clef")
                 .with_retries(3);
 
-            if self.compress {
-                println!("Compressing Logs");
+            if self.compress && chunk_to_upload.len() > 1024 * 1024 {
                 fl_url = fl_url.compress();
             }
 
