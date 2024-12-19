@@ -16,8 +16,6 @@ pub async fn upload_log_events_chunk(
     for log_event in data.iter() {
         let payload = super::serialize(log_event, &populated_params);
 
-        println!("Compiled logs payload len:{}", payload.len());
-
         let merge_slice =
             chunk_to_upload.len() == 0 || chunk_to_upload.len() + payload.len() < MAX_CHUNK_SIZE;
 

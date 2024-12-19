@@ -28,6 +28,7 @@ impl FlUrlUploader {
 #[async_trait::async_trait]
 impl LogsChunkUploader for FlUrlUploader {
     async fn upload_chunk(&self, chunk_to_upload: &[u8]) {
+        println!("Uploading chunk of size: {}", chunk_to_upload.len());
         let mut attempt_no = 0;
         loop {
             attempt_no += 1;
