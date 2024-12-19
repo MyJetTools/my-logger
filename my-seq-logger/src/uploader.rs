@@ -13,6 +13,7 @@ pub struct FlUrlUploader {
     pub url: String,
     pub api_key: Option<String>,
     pub seq_debug: bool,
+    pub compress: bool,
 }
 
 impl FlUrlUploader {
@@ -21,6 +22,7 @@ impl FlUrlUploader {
             url,
             api_key,
             seq_debug: std::env::var("SEQ_DEBUG").is_ok(),
+            compress: std::env::var("SEQ_COMPRESS").is_ok(),
         }
     }
 }
@@ -45,7 +47,12 @@ impl LogsChunkUploader for FlUrlUploader {
                 .append_path_segment("events")
                 .append_path_segment("raw")
                 .with_header("Accept", "*/*")
-                .with_header("Content-Type", "application/vnd.serilog.clef");
+                .with_header("Content-Type", "application/vnd.serilog.clef")
+                .with_retries(3);
+
+            if self.compress {
+                fl_url = fl_url.compress();
+            }
 
             if let Some(api_key) = self.api_key.as_ref() {
                 fl_url = fl_url.with_header("X-Seq-ApiKey", api_key);
@@ -72,7 +79,7 @@ impl LogsChunkUploader for FlUrlUploader {
                         attempt_no, err
                     );
 
-                    if attempt_no > 10 {
+                    if attempt_no > 3 {
                         return;
                     }
 
