@@ -13,7 +13,7 @@ pub async fn upload_log_events_chunk(
 ) {
     let mut chunk_to_upload = Vec::new();
 
-    let mut payload = Vec::new();
+    let mut payload = String::new();
 
     for log_event in data.iter() {
         payload = super::serialize(payload, log_event, &populated_params);
@@ -27,11 +27,11 @@ pub async fn upload_log_events_chunk(
                 chunk_to_upload.push(10);
             }
 
-            chunk_to_upload.extend_from_slice(payload.as_slice());
+            chunk_to_upload.extend_from_slice(payload.as_bytes());
         } else {
             uploader.upload_chunk(chunk_to_upload.as_slice()).await;
             chunk_to_upload.clear();
-            chunk_to_upload.extend_from_slice(payload.as_slice());
+            chunk_to_upload.extend_from_slice(payload.as_bytes());
         }
     }
 
