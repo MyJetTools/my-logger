@@ -12,6 +12,25 @@ pub enum LogLevel {
 }
 
 impl LogLevel {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            LogLevel::Info => 0,
+            LogLevel::Warning => 1,
+            LogLevel::Error => 2,
+            LogLevel::FatalError => 3,
+            LogLevel::Debug => 4,
+        }
+    }
+
+    pub fn from_u8(value: u8) -> Self {
+        match value {
+            1 => Self::Warning,
+            2 => Self::Error,
+            3 => Self::FatalError,
+            4 => Self::Debug,
+            _ => Self::Info,
+        }
+    }
     pub fn to_string(&self) -> &'static str {
         match self {
             LogLevel::Info => "Info",
