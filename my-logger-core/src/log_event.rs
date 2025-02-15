@@ -31,7 +31,17 @@ impl LogLevel {
             _ => Self::Info,
         }
     }
-    pub fn to_string(&self) -> &'static str {
+
+    pub fn from_str(src: &str) -> Self {
+        match src {
+            "Warning" => Self::Warning,
+            "Error" => Self::Error,
+            "FatalError" => Self::FatalError,
+            "Debug" => Self::Debug,
+            _ => Self::Info,
+        }
+    }
+    pub fn as_str(&self) -> &'static str {
         match self {
             LogLevel::Info => "Info",
             LogLevel::Warning => "Warning",
