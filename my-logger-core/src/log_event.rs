@@ -12,6 +12,9 @@ pub enum LogLevel {
 }
 
 impl LogLevel {
+    pub fn eq_to(&self, other: &Self) -> bool {
+        *self as u8 == *other as u8
+    }
     pub fn to_u8(&self) -> u8 {
         match self {
             LogLevel::Info => 0,
