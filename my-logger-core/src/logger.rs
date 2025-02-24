@@ -25,6 +25,10 @@ impl MyLogger {
         let mut write_access = self.inner.log_readers.lock().await;
         write_access.populate_params("Application".to_string(), app_name.into().to_string());
         write_access.populate_params("Version".to_string(), app_version.into().to_string());
+
+        if let Ok(env_info) = std::env::var("ENV_INFO") {
+            write_access.populate_params("EnvInfo".to_string(), env_info);
+        }
     }
 
     pub async fn plug_reader(&self, reader: Arc<dyn MyLoggerReader + Send + Sync + 'static>) {
