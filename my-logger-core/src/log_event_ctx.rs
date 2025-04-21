@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use rust_extensions::StrOrString;
 
+#[derive(Debug, Clone)]
 pub struct LogEventCtx(Option<HashMap<String, String>>);
 
 impl LogEventCtx {
@@ -48,11 +49,5 @@ impl LogEventCtx {
 impl Into<LogEventCtx> for Option<LogEventCtx> {
     fn into(self) -> LogEventCtx {
         self.unwrap_or_else(LogEventCtx::new)
-    }
-}
-
-impl Clone for LogEventCtx {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
     }
 }
