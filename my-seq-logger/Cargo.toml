@@ -12,5 +12,5 @@ my-logger-core = { path = "../my-logger-core" }
 my-json = { tag = "0.3.1", git = "https://github.com/MyJetTools/my-json.git" }
 
 hyper = { version = "*", features = ["full"] }
-tokio = { version = "*", features = ["full"] }
+tokio = { version = "*" }
 async-trait = "*"
