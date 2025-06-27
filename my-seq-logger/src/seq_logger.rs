@@ -15,27 +15,25 @@ impl SeqLogger {
         settings: Arc<dyn SeqSettings + Send + Sync + 'static>,
     ) {
         std::panic::set_hook(Box::new(|itm| {
-            let ctx = if let Some(location) = itm.location() {
+            let mut ctx = if let Some(location) = itm.location() {
                 LogEventCtx::new().add("Location", format!("{}", location))
             } else {
                 LogEventCtx::new()
             };
 
+            ctx = ctx.add("PanicInfo", format!("{}", itm));
+
             let payload = itm.payload();
 
-            if let Some(s) = payload.downcast_ref::<&str>() {
-                println!("panic occurred: {s:?}");
+            let panic_message = if let Some(s) = payload.downcast_ref::<&str>() {
+                format!("{s:?}")
             } else if let Some(s) = payload.downcast_ref::<String>() {
-                println!("panic occurred: {s:?}");
+                format!("{s:?}")
             } else {
-                println!("panic occurred: {:?}", payload);
-            }
+                format!("{:?}", payload)
+            };
 
-            my_logger_core::LOGGER.write_fatal_error(
-                "Panic Handler",
-                format!("Panic info: {:?}", itm),
-                ctx,
-            );
+            my_logger_core::LOGGER.write_fatal_error("Panic Handler", panic_message, ctx);
         }));
 
         let mut result = Self {
