@@ -21,6 +21,16 @@ impl SeqLogger {
                 LogEventCtx::new()
             };
 
+            let payload = itm.payload();
+
+            if let Some(s) = payload.downcast_ref::<&str>() {
+                println!("panic occurred: {s:?}");
+            } else if let Some(s) = payload.downcast_ref::<String>() {
+                println!("panic occurred: {s:?}");
+            } else {
+                println!("panic occurred: {:?}", payload);
+            }
+
             my_logger_core::LOGGER.write_fatal_error(
                 "Panic Handler",
                 format!("Panic info: {:?}", itm),
