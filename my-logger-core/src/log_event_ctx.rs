@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use rust_extensions::StrOrString;
 
@@ -49,5 +49,17 @@ impl LogEventCtx {
 impl Into<LogEventCtx> for Option<LogEventCtx> {
     fn into(self) -> LogEventCtx {
         self.unwrap_or_else(LogEventCtx::new)
+    }
+}
+
+impl Into<LogEventCtx> for HashMap<String, String> {
+    fn into(self) -> LogEventCtx {
+        LogEventCtx(Some(self))
+    }
+}
+
+impl Into<LogEventCtx> for BTreeMap<String, String> {
+    fn into(self) -> LogEventCtx {
+        LogEventCtx(Some(self.into_iter().collect()))
     }
 }
