@@ -28,7 +28,7 @@ impl PopulatedParams {
         return None;
     }
 
-    pub fn iter(&self) -> std::slice::Iter<(String, String)> {
+    pub fn iter(&self) -> std::slice::Iter<'_, (String, String)> {
         self.data.iter()
     }
 }
