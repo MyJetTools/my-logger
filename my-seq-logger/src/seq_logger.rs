@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{SeqLoggerInner, SeqSettings};
+use crate::{SeqLoggerInner, SeqLoggerSettings, SeqSettings};
 use my_logger_core::{LogEventCtx, MyLogEvent, MyLoggerReader};
 use rust_extensions::{events_loop::EventsLoop, AppStates};
 
@@ -36,9 +36,14 @@ impl SeqLogger {
             my_logger_core::LOGGER.write_fatal_error("Panic Handler", panic_message, ctx);
         }));
 
+        let mut inner = SeqLoggerInner::new(settings.clone());
+        if let Some(queue_size) = SeqLoggerSettings::read(&settings).await.queue_size {
+            inner.configure(queue_size)
+        }
+
         let mut result = Self {
             app_states: AppStates::create_initialized().into(),
-            inner: Arc::new(SeqLoggerInner::new(settings)),
+            inner: Arc::new(inner),
             events_loop: EventsLoop::new("SeqLogger".to_string(), my_logger_core::LOGGER.clone()),
         };
 
