@@ -16,6 +16,10 @@ impl SeqLoggerInner {
             settings,
         }
     }
+
+    pub fn configure(&mut self, queue_size: usize) {
+        self.log_events.configure_size(queue_size);
+    }
 }
 
 #[async_trait::async_trait]

@@ -5,20 +5,28 @@ use tokio::sync::Mutex;
 
 pub struct LogEventsQueue {
     queue: Mutex<Option<Vec<Arc<MyLogEvent>>>>,
+    queue_size: Option<usize>,
 }
 
 impl LogEventsQueue {
     pub fn new() -> Self {
         Self {
             queue: Mutex::new(None),
+            queue_size: None,
         }
+    }
+
+    pub fn configure_size(&mut self, queue_size: usize){
+        self.queue_size = Some(queue_size);
     }
 
     pub async fn enqueue(&self, log_event: Arc<MyLogEvent>) {
         let mut write_access = self.queue.lock().await;
 
         if let Some(queue) = &mut *write_access {
-            queue.push(log_event);
+            if &queue.len() < &self.queue_size.unwrap_or(usize::MAX) {
+                queue.push(log_event);
+            }
             return;
         }
 
