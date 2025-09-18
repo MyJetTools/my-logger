@@ -13,6 +13,7 @@ pub struct SeqLoggerSettings {
     pub api_key: Option<String>,
     pub max_logs_flush_chunk: usize,
     pub flush_delay: Duration,
+    pub queue_size: Option<usize>,
 }
 
 impl SeqLoggerSettings {
@@ -35,6 +36,7 @@ impl SeqLoggerSettings {
         let mut api_key = None;
         let mut max_logs_flush_chunk = DEFAULT_FLUSH_CHUNK;
         let mut flush_delay = DEFAULT_FLUSH_SLEEP;
+        let mut queue_size = None;
 
         for item in conn_string.split(';') {
             let (key, value) = spit_key_value(item);
@@ -54,6 +56,9 @@ impl SeqLoggerSettings {
                 "flushdelay" => {
                     flush_delay = value.parse::<u64>().expect("FlushDelay must be a number");
                 }
+                "queuesize" => {
+                    queue_size = Some(value.parse::<usize>().expect("QueueSize must be a number"));
+                }
                 _ => {
                     panic!("Invalid key {} of seq connection string ", key);
                 }
@@ -71,6 +76,7 @@ impl SeqLoggerSettings {
             api_key: api_key.to_owned(),
             max_logs_flush_chunk,
             flush_delay: Duration::from_secs(flush_delay),
+            queue_size,
         };
 
         Ok(result)
@@ -92,6 +98,8 @@ fn spit_key_value(str: &str) -> (&str, &str) {
 #[cfg(test)]
 mod tests {
     use super::spit_key_value;
+    use super::SeqLoggerSettings;
+    use std::time::Duration;
 
     #[test]
     fn test_split_key_value() {
@@ -111,5 +119,34 @@ mod tests {
 
         assert_eq!("A", key);
         assert_eq!("", value);
+    }
+
+    #[test]
+    fn test_try_parse_correct_correct_values() {
+        let str = "url=seq.test.com;apikey=value;flushlogschunk=100;flushdelay=1;queuesize=10";
+
+        let result = SeqLoggerSettings::try_parse(str);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!("seq.test.com", result.url);
+        assert_eq!(Some("value".to_string()), result.api_key);
+        assert_eq!(100, result.max_logs_flush_chunk);
+        assert_eq!(Duration::from_secs(1u64), result.flush_delay);
+        assert_eq!(Some(10), result.queue_size);
+    }
+
+    #[test]
+    fn test_try_parse_default_values() {
+        let str = "url=seq.test.com";
+
+        let result = SeqLoggerSettings::try_parse(str);
+
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!("seq.test.com", result.url);
+        assert!(result.api_key.is_none());
+        assert_eq!(super::DEFAULT_FLUSH_CHUNK, result.max_logs_flush_chunk);
+        assert_eq!(super::DEFAULT_FLUSH_SLEEP, result.flush_delay.as_secs());
+        assert!(result.queue_size.is_none())
     }
 }
