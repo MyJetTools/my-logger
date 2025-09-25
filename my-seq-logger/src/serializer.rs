@@ -44,22 +44,25 @@ pub fn serialize(
         my_logger_core::LogLevel::Debug => "Debug",
     };
 
-    json_writer.write("@l", level_as_str);
-    json_writer.write("@t", &log_event.dt.to_rfc3339()[..26]);
-    json_writer.write(
-        "Process",
-        crate::seq_utils::format_seq_string(log_event.process.as_str()).as_str(),
-    );
-    json_writer.write(
-        "@m",
-        crate::seq_utils::format_seq_string(log_event.message.as_str()).as_str(),
-    );
+    json_writer = json_writer
+        .write("@l", level_as_str)
+        .write("@t", &log_event.dt.to_rfc3339()[..26])
+        .write(
+            "Process",
+            crate::seq_utils::format_seq_string(log_event.process.as_str()).as_str(),
+        )
+        .write(
+            "@m",
+            crate::seq_utils::format_seq_string(log_event.message.as_str()).as_str(),
+        );
 
     for (key, value) in populated_params.iter() {
         if key == LOCATION_KEY {
-            json_writer.write("@x", crate::seq_utils::format_seq_string(value).as_str());
+            json_writer =
+                json_writer.write("@x", crate::seq_utils::format_seq_string(value).as_str());
         } else {
-            json_writer.write(key, crate::seq_utils::format_seq_string(value).as_str());
+            json_writer =
+                json_writer.write(key, crate::seq_utils::format_seq_string(value).as_str());
         }
     }
 
@@ -67,11 +70,12 @@ pub fn serialize(
         for (key, value) in ctx {
             match ContextType::new(value.as_str()) {
                 ContextType::String => {
-                    json_writer.write(key, crate::seq_utils::format_value(value).as_str());
+                    json_writer =
+                        json_writer.write(key, crate::seq_utils::format_value(value).as_str());
                 }
                 ContextType::Raw => {
                     let raw_value = RawJsonObject::AsStr(value);
-                    json_writer.write(key, raw_value);
+                    json_writer = json_writer.write(key, raw_value);
                 }
             }
         }
