@@ -44,9 +44,12 @@ pub fn serialize(
         my_logger_core::LogLevel::Debug => "Debug",
     };
 
+    let timestamp = log_event.dt.to_rfc3339();
+    let timestamp = timestamp.get(..26).unwrap_or(timestamp.as_str());
+
     json_writer = json_writer
         .write("@l", level_as_str)
-        .write("@t", &log_event.dt.to_rfc3339()[..26])
+        .write("@t", timestamp)
         .write(
             "Process",
             crate::seq_utils::format_seq_string(log_event.process.as_str()).as_str(),
