@@ -7,6 +7,7 @@ pub trait SeqSettings {
 
 const DEFAULT_FLUSH_SLEEP: u64 = 1;
 const DEFAULT_FLUSH_CHUNK: usize = 50;
+const DEFAULT_TIMEOUT: u64 = 10;
 
 pub struct SeqLoggerSettings {
     pub url: String,
@@ -14,6 +15,7 @@ pub struct SeqLoggerSettings {
     pub max_logs_flush_chunk: usize,
     pub flush_delay: Duration,
     pub queue_size: Option<usize>,
+    pub timeout: Duration,
 }
 
 impl SeqLoggerSettings {
@@ -37,6 +39,7 @@ impl SeqLoggerSettings {
         let mut max_logs_flush_chunk = DEFAULT_FLUSH_CHUNK;
         let mut flush_delay = DEFAULT_FLUSH_SLEEP;
         let mut queue_size = None;
+        let mut timeout = DEFAULT_TIMEOUT;
 
         for item in conn_string.split(';') {
             let (key, value) = spit_key_value(item);
@@ -59,6 +62,9 @@ impl SeqLoggerSettings {
                 "queuesize" => {
                     queue_size = Some(value.parse::<usize>().expect("QueueSize must be a number"));
                 }
+                "timeout" => {
+                    timeout = value.parse::<u64>().expect("Timeout must be a number");
+                }
                 _ => {
                     panic!("Invalid key {} of seq connection string ", key);
                 }
@@ -77,6 +83,7 @@ impl SeqLoggerSettings {
             max_logs_flush_chunk,
             flush_delay: Duration::from_secs(flush_delay),
             queue_size,
+            timeout: Duration::from_secs(timeout),
         };
 
         Ok(result)
