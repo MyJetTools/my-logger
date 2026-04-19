@@ -41,15 +41,21 @@ impl SeqLogger {
             inner.configure(queue_size)
         }
 
-        let mut result = Self {
+        let result = Self {
             app_states: AppStates::create_initialized().into(),
             inner: Arc::new(inner),
-            events_loop: EventsLoop::new("SeqLogger".to_string(), my_logger_core::LOGGER.clone()),
+            events_loop: EventsLoop::new("SeqLogger".to_string()),
         };
 
-        result.events_loop.register_event_loop(result.inner.clone());
+        result
+            .events_loop
+            .register_event_loop(result.inner.clone())
+            .await;
 
-        result.events_loop.start(result.app_states.clone());
+        result
+            .events_loop
+            .start(result.app_states.clone(), my_logger_core::LOGGER.clone())
+            .await;
 
         let seq_logger = Arc::new(result);
         my_logger_core::LOGGER.plug_reader(seq_logger.clone()).await;
