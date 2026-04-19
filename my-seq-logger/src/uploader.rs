@@ -14,15 +14,17 @@ pub struct FlUrlUploader {
     pub api_key: Option<String>,
     pub seq_debug: bool,
     pub compress: bool,
+    pub timeout: Duration,
 }
 
 impl FlUrlUploader {
-    pub fn new(url: String, api_key: Option<String>) -> Self {
+    pub fn new(url: String, api_key: Option<String>, timeout: Duration) -> Self {
         Self {
             url,
             api_key,
             seq_debug: std::env::var("SEQ_DEBUG").is_ok(),
             compress: std::env::var("SEQ_COMPRESS").is_ok(),
+            timeout,
         }
     }
 }
@@ -42,7 +44,7 @@ impl LogsChunkUploader for FlUrlUploader {
             }
 
             let mut fl_url = FlUrl::new(self.url.as_str())
-                .set_timeout(Duration::from_secs(10))
+                .set_timeout(self.timeout)
                 .append_path_segment("api")
                 .append_path_segment("events")
                 .append_path_segment("raw")

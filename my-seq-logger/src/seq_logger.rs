@@ -37,14 +37,17 @@ impl SeqLogger {
         }));
 
         let mut inner = SeqLoggerInner::new(settings.clone());
-        if let Some(queue_size) = SeqLoggerSettings::read(&settings).await.queue_size {
+        let settings = SeqLoggerSettings::read(&settings).await;
+
+        if let Some(queue_size) = settings.queue_size {
             inner.configure(queue_size)
         }
 
         let result = Self {
             app_states: AppStates::create_initialized().into(),
             inner: Arc::new(inner),
-            events_loop: EventsLoop::new("SeqLogger".to_string()),
+            events_loop: EventsLoop::new("SeqLogger".to_string())
+                .set_iteration_timeout(settings.timeout),
         };
 
         result

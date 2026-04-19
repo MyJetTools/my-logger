@@ -40,7 +40,7 @@ impl EventsLoopTick<()> for SeqLoggerInner {
 
         let populated_params = my_logger_core::LOGGER.get_populated_params().await;
 
-        let fl_url_uploader = FlUrlUploader::new(settings.url, settings.api_key);
+        let fl_url_uploader = FlUrlUploader::new(settings.url, settings.api_key, settings.timeout);
 
         crate::upload_logs_chunk::upload_log_events_chunk(
             &fl_url_uploader,
