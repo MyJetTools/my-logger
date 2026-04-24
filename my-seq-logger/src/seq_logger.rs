@@ -50,15 +50,11 @@ impl SeqLogger {
                 .set_iteration_timeout(settings.timeout),
         };
 
-        result
-            .events_loop
-            .register_event_loop(result.inner.clone())
-            .await;
+        result.events_loop.register_event_loop(result.inner.clone());
 
         result
             .events_loop
-            .start(result.app_states.clone(), my_logger_core::LOGGER.clone())
-            .await;
+            .start(result.app_states.clone(), my_logger_core::LOGGER.clone());
 
         let seq_logger = Arc::new(result);
         my_logger_core::LOGGER.plug_reader(seq_logger.clone()).await;
