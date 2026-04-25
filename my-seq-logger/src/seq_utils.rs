@@ -2,30 +2,24 @@ use rust_extensions::{MaybeShortString, StrOrString};
 
 pub fn format_seq_string<'s>(src: impl Into<StrOrString<'s>>) -> StrOrString<'s> {
     let src: StrOrString<'s> = src.into();
-    let mut has_esc_symbol = false;
+    let s = src.as_str();
 
-    for c in src.as_str().chars() {
-        let as_u8 = c as u8;
-        if as_u8 < 32 {
-            has_esc_symbol = true;
-            break;
-        }
-    }
-
-    if !has_esc_symbol {
-        return src;
-    }
+    // ASCII control bytes (<32) never appear inside a UTF-8 continuation,
+    // so a byte index found this way is also a valid char boundary.
+    let first = match s.as_bytes().iter().position(|&b| b < 32) {
+        Some(idx) => idx,
+        None => return src,
+    };
 
     let mut result = MaybeShortString::new();
+    result.push_str(&s[..first]);
 
-    for c in src.as_str().chars() {
-        let as_u8 = c as u8;
-
-        if as_u8 < 32 {
-            if c == '\n' {
-                result.push_str("\\n");
-            } else if c == '\r' {
-                result.push_str("\\r");
+    for c in s[first..].chars() {
+        if (c as u32) < 32 {
+            match c {
+                '\n' => result.push_str("\\n"),
+                '\r' => result.push_str("\\r"),
+                _ => {}
             }
         } else {
             result.push(c);
@@ -36,11 +30,17 @@ pub fn format_seq_string<'s>(src: impl Into<StrOrString<'s>>) -> StrOrString<'s>
 }
 
 pub fn format_value<'s>(src: &'s str) -> StrOrString<'s> {
-    let mut result = MaybeShortString::new();
+    let first = match src.as_bytes().iter().position(|&b| b < 32) {
+        Some(idx) => idx,
+        None => return src.into(),
+    };
 
-    for b in src.chars() {
-        if b as u8 >= 32 {
-            result.push(b);
+    let mut result = MaybeShortString::new();
+    result.push_str(&src[..first]);
+
+    for c in src[first..].chars() {
+        if (c as u32) >= 32 {
+            result.push(c);
         }
     }
 

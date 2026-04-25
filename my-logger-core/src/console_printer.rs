@@ -84,30 +84,31 @@ impl ConsoleFilter {
 }
 
 fn write_log(log_event: &MyLogEvent) {
-    let is_err = match log_event.level {
-        LogLevel::Error | LogLevel::FatalError => true,
-        _ => false,
-    };
+    use std::fmt::Write as FmtWrite;
+    use std::io::Write as IoWrite;
 
+    let estimated = 64 + log_event.process.len() + log_event.message.len();
+    let mut buf = String::with_capacity(estimated);
+
+    let _ = writeln!(
+        &mut buf,
+        "{} {}",
+        log_event.dt.to_rfc3339(),
+        log_event.level.as_str()
+    );
+    let _ = writeln!(&mut buf, "Process: {}", log_event.process);
+    let _ = writeln!(&mut buf, "Message: {}", log_event.message);
+    if let Some(ctx) = &log_event.context {
+        let _ = writeln!(&mut buf, "Context: {:?}", ctx);
+    }
+    buf.push_str("-------------------\n");
+
+    let is_err = matches!(log_event.level, LogLevel::Error | LogLevel::FatalError);
     if is_err {
-        eprintln!("{} {:?}", log_event.dt.to_rfc3339(), log_event.level);
-        eprintln!("Process: {}", log_event.process);
-        eprintln!("Message: {}", log_event.message);
-
-        if let Some(ctx) = &log_event.context {
-            eprintln!("Context: {:?}", ctx);
-        }
-
-        eprintln!("-------------------")
+        let stderr = std::io::stderr();
+        let _ = stderr.lock().write_all(buf.as_bytes());
     } else {
-        println!("{} {:?}", log_event.dt.to_rfc3339(), log_event.level);
-        println!("Process: {}", log_event.process);
-        println!("Message: {}", log_event.message);
-
-        if let Some(ctx) = &log_event.context {
-            println!("Context: {:?}", ctx);
-        }
-
-        println!("-------------------")
+        let stdout = std::io::stdout();
+        let _ = stdout.lock().write_all(buf.as_bytes());
     }
 }

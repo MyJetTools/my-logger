@@ -1,2 +1,7 @@
 [workspace]
 members = ["my-logger", "my-seq-logger", "my-logger-core"]
+resolver = "2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

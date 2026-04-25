@@ -64,7 +64,7 @@ impl SeqLogger {
 #[async_trait::async_trait]
 impl MyLoggerReader for SeqLogger {
     async fn write_log(&self, log_event: Arc<MyLogEvent>) {
-        self.inner.log_events.enqueue(log_event).await;
+        self.inner.log_events.enqueue(log_event);
         self.events_loop.send(());
     }
 }

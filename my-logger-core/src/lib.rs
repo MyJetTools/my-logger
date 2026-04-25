@@ -16,10 +16,6 @@ pub use logger_reader::MyLoggerReader;
 pub use my_logger_inner::*;
 mod populated_params;
 pub use populated_params::*;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
-lazy_static::lazy_static! {
-    pub static ref LOGGER: Arc<MyLogger> = {
-        Arc::new(MyLogger::new())
-    };
-}
+pub static LOGGER: LazyLock<Arc<MyLogger>> = LazyLock::new(|| Arc::new(MyLogger::new()));

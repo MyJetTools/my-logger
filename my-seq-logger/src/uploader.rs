@@ -6,7 +6,7 @@ const NULL_PARAM: Option<&str> = None;
 
 #[async_trait::async_trait]
 pub trait LogsChunkUploader {
-    async fn upload_chunk(&self, chunk: &[u8]);
+    async fn upload_chunk(&self, chunk_to_upload: Vec<u8>);
 }
 
 pub struct FlUrlUploader {
@@ -27,21 +27,35 @@ impl FlUrlUploader {
             timeout,
         }
     }
+
+    pub fn matches(&self, url: &str, api_key: &Option<String>, timeout: Duration) -> bool {
+        self.url == url && &self.api_key == api_key && self.timeout == timeout
+    }
 }
 
 #[async_trait::async_trait]
 impl LogsChunkUploader for FlUrlUploader {
-    async fn upload_chunk(&self, chunk_to_upload: &[u8]) {
-        let mut attempt_no = 0;
+    async fn upload_chunk(&self, chunk_to_upload: Vec<u8>) {
+        const MAX_ATTEMPTS: u32 = 4;
+
+        if self.seq_debug {
+            if chunk_to_upload.len() > 256 {
+                println!("Sending log len={}", chunk_to_upload.len());
+            } else {
+                println!("Sending log: [{:?}]", std::str::from_utf8(&chunk_to_upload));
+            }
+        }
+
+        let mut attempt_no: u32 = 0;
+        let mut chunk = Some(chunk_to_upload);
         loop {
             attempt_no += 1;
-            if self.seq_debug {
-                if chunk_to_upload.len() > 256 {
-                    println!("Sending log len={}", chunk_to_upload.len());
-                } else {
-                    println!("Sending log: [{:?}]", std::str::from_utf8(&chunk_to_upload));
-                }
-            }
+
+            let data = if attempt_no == MAX_ATTEMPTS {
+                chunk.take().unwrap()
+            } else {
+                chunk.as_ref().unwrap().clone()
+            };
 
             let mut fl_url = FlUrl::new(self.url.as_str())
                 .set_timeout(self.timeout)
@@ -52,7 +66,7 @@ impl LogsChunkUploader for FlUrlUploader {
                 .with_header("Content-Type", "application/vnd.serilog.clef")
                 .with_retries(3);
 
-            if self.compress && chunk_to_upload.len() > 1024 * 1024 {
+            if self.compress && data.len() > 1024 * 1024 {
                 fl_url = fl_url.compress();
             }
 
@@ -63,7 +77,7 @@ impl LogsChunkUploader for FlUrlUploader {
             let response = fl_url
                 .append_query_param("clef", NULL_PARAM)
                 .post(FlUrlBody::Raw {
-                    data: chunk_to_upload.to_vec(),
+                    data,
                     content_type: None,
                 })
                 .await;
@@ -77,6 +91,9 @@ impl LogsChunkUploader for FlUrlUploader {
                     if is_status_code_ok(response.get_status_code()) {
                         return;
                     }
+                    if attempt_no >= MAX_ATTEMPTS {
+                        return;
+                    }
                 }
                 Err(err) => {
                     println!(
@@ -84,7 +101,7 @@ impl LogsChunkUploader for FlUrlUploader {
                         attempt_no, err
                     );
 
-                    if attempt_no > 3 {
+                    if attempt_no >= MAX_ATTEMPTS {
                         return;
                     }
 

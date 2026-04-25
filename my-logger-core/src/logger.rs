@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString};
+use tokio::sync::mpsc;
 
 use crate::{LogEventCtx, MyLogEvent, MyLoggerInner, MyLoggerReader, PopulatedParams};
 
@@ -8,13 +9,32 @@ use super::LogLevel;
 
 pub struct MyLogger {
     inner: Arc<MyLoggerInner>,
+    sender: mpsc::UnboundedSender<MyLogEvent>,
 }
 
 impl MyLogger {
     pub fn new() -> Self {
-        Self {
-            inner: Arc::new(MyLoggerInner::new(Vec::new())),
-        }
+        let inner = Arc::new(MyLoggerInner::new(Vec::new()));
+        let (sender, mut receiver) = mpsc::unbounded_channel::<MyLogEvent>();
+
+        let worker_inner = inner.clone();
+        tokio::spawn(async move {
+            while let Some(log_event) = receiver.recv().await {
+                worker_inner.update_statistics(log_event.level);
+                worker_inner.console_printer.print_to_console(&log_event);
+
+                let readers = worker_inner.log_readers.lock().await;
+                if readers.get_readers().is_empty() {
+                    continue;
+                }
+                let log_event = Arc::new(log_event);
+                for reader in readers.get_readers() {
+                    reader.write_log(log_event.clone()).await;
+                }
+            }
+        });
+
+        Self { inner, sender }
     }
 
     pub async fn populate_app_and_version(
@@ -68,18 +88,7 @@ impl MyLogger {
             process,
         };
 
-        let inner = self.inner.clone();
-
-        tokio::spawn(async move {
-            inner.update_statistics(log_event.level);
-            let inner_read_access = inner.log_readers.lock().await;
-            inner.console_printer.print_to_console(&log_event);
-            let log_event = Arc::new(log_event);
-
-            for reader in inner_read_access.get_readers() {
-                reader.write_log(log_event.clone()).await;
-            }
-        });
+        let _ = self.sender.send(log_event);
     }
 
     pub async fn write_log_async(&self, log_event: Arc<MyLogEvent>) {

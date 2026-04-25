@@ -5,38 +5,37 @@ use my_logger_core::{MyLogEvent, PopulatedParams};
 use crate::LogsChunkUploader;
 
 const MAX_CHUNK_SIZE: usize = 1024 * 1024 * 2;
+const INITIAL_CHUNK_CAPACITY: usize = 64 * 1024;
+const INITIAL_PAYLOAD_CAPACITY: usize = 1024;
 
 pub async fn upload_log_events_chunk(
     uploader: &impl LogsChunkUploader,
     populated_params: PopulatedParams,
     data: Vec<Arc<MyLogEvent>>,
 ) {
-    let mut chunk_to_upload = Vec::new();
-
-    let mut payload = String::new();
+    let mut chunk_to_upload: Vec<u8> = Vec::with_capacity(INITIAL_CHUNK_CAPACITY);
+    let mut payload = String::with_capacity(INITIAL_PAYLOAD_CAPACITY);
 
     for log_event in data.iter() {
         payload = super::serialize(payload, log_event, &populated_params);
 
-        let merge_slice =
-            chunk_to_upload.len() == 0 || chunk_to_upload.len() + payload.len() < MAX_CHUNK_SIZE;
+        let separator_len = if chunk_to_upload.is_empty() { 0 } else { 2 };
+        let projected = chunk_to_upload.len() + separator_len + payload.len();
 
-        if merge_slice {
-            if chunk_to_upload.len() > 0 {
-                chunk_to_upload.push(13);
-                chunk_to_upload.push(10);
-            }
-
-            chunk_to_upload.extend_from_slice(payload.as_bytes());
-        } else {
-            uploader.upload_chunk(chunk_to_upload.as_slice()).await;
-            chunk_to_upload.clear();
-            chunk_to_upload.extend_from_slice(payload.as_bytes());
+        if projected > MAX_CHUNK_SIZE && !chunk_to_upload.is_empty() {
+            let cap = chunk_to_upload.capacity();
+            let to_send = std::mem::replace(&mut chunk_to_upload, Vec::with_capacity(cap));
+            uploader.upload_chunk(to_send).await;
         }
+
+        if !chunk_to_upload.is_empty() {
+            chunk_to_upload.extend_from_slice(b"\r\n");
+        }
+        chunk_to_upload.extend_from_slice(payload.as_bytes());
     }
 
-    if chunk_to_upload.len() > 0 {
-        uploader.upload_chunk(chunk_to_upload.as_slice()).await;
+    if !chunk_to_upload.is_empty() {
+        uploader.upload_chunk(chunk_to_upload).await;
     }
 }
 
@@ -53,7 +52,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl LogsChunkUploader for MockUploader {
-        async fn upload_chunk(&self, chunk: &[u8]) {
+        async fn upload_chunk(&self, chunk: Vec<u8>) {
             println!("Uploaded {}", chunk.len());
         }
     }
