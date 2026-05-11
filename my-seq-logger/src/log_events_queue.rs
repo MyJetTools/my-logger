@@ -1,6 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use my_logger_core::MyLogEvent;
+use parking_lot::Mutex;
 
 const INITIAL_QUEUE_CAPACITY: usize = 64;
 
@@ -22,7 +23,7 @@ impl LogEventsQueue {
     }
 
     pub fn enqueue(&self, log_event: Arc<MyLogEvent>) {
-        let mut queue = self.queue.lock().unwrap();
+        let mut queue = self.queue.lock();
         if let Some(limit) = self.queue_size {
             if queue.len() >= limit {
                 return;
@@ -32,7 +33,7 @@ impl LogEventsQueue {
     }
 
     pub fn dequeue(&self) -> Option<Vec<Arc<MyLogEvent>>> {
-        let mut queue = self.queue.lock().unwrap();
+        let mut queue = self.queue.lock();
         if queue.is_empty() {
             return None;
         }

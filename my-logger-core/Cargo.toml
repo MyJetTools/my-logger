@@ -9,3 +9,5 @@ edition = "2021"
 rust-extensions = { tag = "0.1.5", git = "https://github.com/MyJetTools/rust-extensions.git" }
 tokio = { version = "*", features = ["rt", "sync", "time", "macros"] }
 async-trait = "*"
+parking_lot = "*"
+arc-swap = "*"

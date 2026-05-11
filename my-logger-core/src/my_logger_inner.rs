@@ -1,23 +1,23 @@
-use rust_extensions::date_time::DateTimeAsMicroseconds;
-use tokio::sync::Mutex;
+use arc_swap::ArcSwap;
+use rust_extensions::{date_time::DateTimeAsMicroseconds, StrOrString};
 
 use crate::{ConsoleFilter, LogLevel, LogReaders, LogsStatistics};
 
 pub struct MyLoggerInner {
     pub console_printer: ConsoleFilter,
     pub statistics: LogsStatistics,
-    pub log_readers: Mutex<LogReaders>,
+    pub log_readers: ArcSwap<LogReaders>,
 
     pub start_time: DateTimeAsMicroseconds,
 }
 
 impl MyLoggerInner {
-    pub fn new(populated_params: Vec<(String, String)>) -> Self {
+    pub fn new(populated_params: Vec<(&'static str, StrOrString<'static>)>) -> Self {
         Self {
             console_printer: ConsoleFilter::new(),
             statistics: LogsStatistics::new(),
             start_time: DateTimeAsMicroseconds::now(),
-            log_readers: Mutex::new(LogReaders::new(populated_params)),
+            log_readers: ArcSwap::new(LogReaders::new(populated_params).into()),
         }
     }
 

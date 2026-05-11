@@ -57,13 +57,12 @@ impl SeqLogger {
             .start(result.app_states.clone(), my_logger_core::LOGGER.clone());
 
         let seq_logger = Arc::new(result);
-        my_logger_core::LOGGER.plug_reader(seq_logger.clone()).await;
+        my_logger_core::LOGGER.plug_reader(seq_logger.clone());
     }
 }
 
-#[async_trait::async_trait]
 impl MyLoggerReader for SeqLogger {
-    async fn write_log(&self, log_event: Arc<MyLogEvent>) {
+    fn write_log(&self, log_event: Arc<MyLogEvent>) {
         self.inner.log_events.enqueue(log_event);
         self.events_loop.send(());
     }

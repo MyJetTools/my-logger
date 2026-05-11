@@ -1,5 +1,6 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
+use parking_lot::Mutex;
 use rust_extensions::events_loop::EventsLoopTick;
 
 use crate::{FlUrlUploader, LogEventsQueue, SeqLoggerSettings, SeqSettings};
@@ -26,7 +27,7 @@ impl SeqLoggerInner {
     async fn get_uploader(&self) -> Arc<FlUrlUploader> {
         let settings = SeqLoggerSettings::read(&self.settings).await;
 
-        let mut cached = self.cached_uploader.lock().unwrap();
+        let mut cached = self.cached_uploader.lock();
         if let Some(existing) = cached.as_ref() {
             if existing.matches(&settings.url, &settings.api_key, settings.timeout) {
                 return existing.clone();
@@ -55,7 +56,7 @@ impl EventsLoopTick<()> for SeqLoggerInner {
         };
 
         let uploader = self.get_uploader().await;
-        let populated_params = my_logger_core::LOGGER.get_populated_params().await;
+        let populated_params = my_logger_core::LOGGER.get_populated_params();
 
         crate::upload_logs_chunk::upload_log_events_chunk(
             uploader.as_ref(),

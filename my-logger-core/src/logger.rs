@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
 use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString};
-use tokio::sync::mpsc;
 
 use crate::{LogEventCtx, MyLogEvent, MyLoggerInner, MyLoggerReader, PopulatedParams};
 
@@ -9,67 +8,65 @@ use super::LogLevel;
 
 pub struct MyLogger {
     inner: Arc<MyLoggerInner>,
-    sender: mpsc::UnboundedSender<MyLogEvent>,
 }
 
 impl MyLogger {
     pub fn new() -> Self {
         let inner = Arc::new(MyLoggerInner::new(Vec::new()));
-        let (sender, mut receiver) = mpsc::unbounded_channel::<MyLogEvent>();
-
-        let worker_inner = inner.clone();
-        tokio::spawn(async move {
-            while let Some(log_event) = receiver.recv().await {
-                worker_inner.update_statistics(log_event.level);
-                worker_inner.console_printer.print_to_console(&log_event);
-
-                let readers = worker_inner.log_readers.lock().await;
-                if readers.get_readers().is_empty() {
-                    continue;
-                }
-                let log_event = Arc::new(log_event);
-                for reader in readers.get_readers() {
-                    reader.write_log(log_event.clone()).await;
-                }
-            }
-        });
-
-        Self { inner, sender }
+        Self { inner }
     }
 
     pub async fn populate_app_and_version(
         &self,
-        app_name: impl Into<StrOrString<'static>>,
-        app_version: impl Into<StrOrString<'static>>,
+        app_name: &'static str,
+        app_version: &'static str,
     ) {
-        let mut write_access = self.inner.log_readers.lock().await;
-        write_access.populate_params("Application".to_string(), app_name.into().to_string());
-        write_access.populate_params("Version".to_string(), app_version.into().to_string());
+        let inner = {
+            let write_access = self.inner.log_readers.load();
 
-        if let Ok(env_info) = std::env::var("ENV_INFO") {
-            write_access.populate_params("EnvInfo".to_string(), env_info);
-        }
+            if let Ok(env_info) = std::env::var("ENV_INFO") {
+                let params: [(&'static str, StrOrString<'static>); 3] = [
+                    ("Application", app_name.into()),
+                    ("Version", app_version.into()),
+                    ("EnvInfo", env_info.into()),
+                ];
+                write_access.populate_params(params.into_iter())
+            } else {
+                let params = [
+                    ("Application", app_name.into()),
+                    ("Version", app_version.into()),
+                ];
+                write_access.populate_params(params.into_iter())
+            }
+        };
+
+        self.inner.log_readers.store(inner.into());
     }
 
-    pub async fn plug_reader(&self, reader: Arc<dyn MyLoggerReader + Send + Sync + 'static>) {
-        let mut write_access = self.inner.log_readers.lock().await;
-        write_access.register_reader(reader);
+    pub fn plug_reader(&self, reader: Arc<dyn MyLoggerReader + Send + Sync + 'static>) {
+        let inner = {
+            let write_access = self.inner.log_readers.load();
+            write_access.register_reader(reader)
+        };
+
+        self.inner.log_readers.store(inner.into());
     }
 
-    pub async fn populate_params(
-        &self,
-        key: impl Into<StrOrString<'static>>,
-        value: impl Into<StrOrString<'static>>,
-    ) {
-        let key: StrOrString<'static> = key.into();
+    pub fn populate_params(&self, key: &'static str, value: impl Into<StrOrString<'static>>) {
         let value: StrOrString<'static> = value.into();
 
-        let mut write_access = self.inner.log_readers.lock().await;
-        write_access.populate_params(key.to_string(), value.to_string());
+        let inner = {
+            let write_access = self.inner.log_readers.load();
+
+            let items = [(key, value)];
+            write_access.populate_params(items.into_iter())
+        };
+
+        self.inner.log_readers.store(inner.into());
     }
 
-    pub async fn get_populated_params(&self) -> PopulatedParams {
-        let read_access = self.inner.log_readers.lock().await;
+    pub fn get_populated_params(&self) -> PopulatedParams {
+        let read_access = self.inner.log_readers.load();
         read_access.get_populated_params().clone()
     }
 
@@ -88,17 +85,26 @@ impl MyLogger {
             process,
         };
 
-        let _ = self.sender.send(log_event);
+        self.inner.update_statistics(log_event.level);
+        self.inner.console_printer.print_to_console(&log_event);
+
+        let readers = self.inner.log_readers.load();
+
+        let log_event = Arc::new(log_event);
+        for reader in readers.get_readers() {
+            reader.write_log(log_event.clone());
+        }
     }
 
+    #[deprecated(note = "Use write_log instead")]
     pub async fn write_log_async(&self, log_event: Arc<MyLogEvent>) {
         let inner = self.inner.clone();
         self.inner.update_statistics(log_event.level);
-        let inner_read_access = inner.log_readers.lock().await;
+        let inner_read_access = inner.log_readers.load();
         inner.console_printer.print_to_console(&log_event);
 
         for reader in inner_read_access.get_readers() {
-            reader.write_log(log_event.clone()).await;
+            reader.write_log(log_event.clone());
         }
     }
 
