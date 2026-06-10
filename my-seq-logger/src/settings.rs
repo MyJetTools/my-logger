@@ -27,7 +27,7 @@ impl SeqLoggerSettings {
             match settings {
                 Ok(result) => return result,
                 Err(err) => {
-                    println!("Can not parse Logs settings. Err: {:?}", err);
+                    eprintln!("Can not parse Logs settings. Err: {:?}", err);
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
             };

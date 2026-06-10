@@ -96,7 +96,7 @@ impl LogsChunkUploader for FlUrlUploader {
                     }
                 }
                 Err(err) => {
-                    println!(
+                    eprintln!(
                         "Attempt: {} Error while uploading logs to seq. Err: {:?}",
                         attempt_no, err
                     );
@@ -123,7 +123,7 @@ async fn print_fl_url_response(response: &mut FlUrlResponse) {
         Ok(body) => body,
 
         Err(err) => {
-            println!("Error while reading response body. Err: {:?}", err);
+            eprintln!("Error while reading response body. Err: {:?}", err);
             return;
         }
     };
