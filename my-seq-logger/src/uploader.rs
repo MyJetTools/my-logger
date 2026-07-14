@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use flurl::{body::FlUrlBody, *};
+use flurl::{body::HttpRequestBody, *};
 
 const NULL_PARAM: Option<&str> = None;
 
@@ -76,7 +76,7 @@ impl LogsChunkUploader for FlUrlUploader {
 
             let response = fl_url
                 .append_query_param("clef", NULL_PARAM)
-                .post(FlUrlBody::Raw {
+                .post(HttpRequestBody::Raw {
                     data,
                     content_type: None,
                 })
