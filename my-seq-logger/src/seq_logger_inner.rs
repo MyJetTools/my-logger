@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use rust_extensions::events_loop::EventsLoopTick;
+use rust_extensions::background_executor::{BackgroundJob, RepeatIteration};
 
 use crate::{FlUrlUploader, LogEventsQueue, SeqLoggerSettings, SeqSettings};
 
@@ -45,14 +45,11 @@ impl SeqLoggerInner {
 }
 
 #[async_trait::async_trait]
-impl EventsLoopTick<()> for SeqLoggerInner {
-    async fn started(&self) {
-        println!("Seq Logs writer is started");
-    }
-    async fn tick(&self, _: ()) {
+impl BackgroundJob for SeqLoggerInner {
+    async fn execute(&self) -> RepeatIteration {
         let events = match self.log_events.dequeue() {
             Some(events) => events,
-            None => return,
+            None => return RepeatIteration::No,
         };
 
         let uploader = self.get_uploader().await;
@@ -64,6 +61,7 @@ impl EventsLoopTick<()> for SeqLoggerInner {
             events,
         )
         .await;
+
+        RepeatIteration::No
     }
-    async fn finished(&self) {}
 }

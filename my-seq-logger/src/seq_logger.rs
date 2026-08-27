@@ -2,12 +2,11 @@ use std::sync::Arc;
 
 use crate::{SeqLoggerInner, SeqLoggerSettings, SeqSettings};
 use my_logger_core::{LogEventCtx, MyLogEvent, MyLoggerReader};
-use rust_extensions::{events_loop::EventsLoop, AppStates};
+use rust_extensions::background_executor::BackgroundExecutor;
 
 pub struct SeqLogger {
     inner: Arc<SeqLoggerInner>,
-    events_loop: EventsLoop<()>,
-    app_states: Arc<AppStates>,
+    background_executor: BackgroundExecutor,
 }
 
 impl SeqLogger {
@@ -44,17 +43,17 @@ impl SeqLogger {
         }
 
         let result = Self {
-            app_states: AppStates::create_initialized().into(),
             inner: Arc::new(inner),
-            events_loop: EventsLoop::new("SeqLogger".to_string())
-                .set_iteration_timeout(settings.timeout),
+            background_executor: BackgroundExecutor::new("SeqLogger"),
         };
 
-        result.events_loop.register_event_loop(result.inner.clone());
+        result.background_executor.register(result.inner.clone());
 
         result
-            .events_loop
-            .start(result.app_states.clone(), my_logger_core::LOGGER.clone());
+            .background_executor
+            .start(my_logger_core::LOGGER.clone());
+
+        println!("Seq Logs writer is started");
 
         let seq_logger = Arc::new(result);
         my_logger_core::LOGGER.plug_reader(seq_logger.clone());
@@ -64,6 +63,6 @@ impl SeqLogger {
 impl MyLoggerReader for SeqLogger {
     fn write_log(&self, log_event: Arc<MyLogEvent>) {
         self.inner.log_events.enqueue(log_event);
-        self.events_loop.send(());
+        self.background_executor.trigger();
     }
 }
