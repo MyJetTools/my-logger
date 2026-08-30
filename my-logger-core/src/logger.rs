@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use rust_extensions::{date_time::DateTimeAsMicroseconds, Logger, StrOrString};
 
-use crate::{LogEventCtx, MyLogEvent, MyLoggerInner, MyLoggerReader, PopulatedParams};
+use crate::{LogEventCtx, MyLogEvent, MyLoggerConsumer, MyLoggerInner, PopulatedParams};
 
 use super::LogLevel;
 
@@ -16,13 +16,9 @@ impl MyLogger {
         Self { inner }
     }
 
-    pub async fn populate_app_and_version(
-        &self,
-        app_name: &'static str,
-        app_version: &'static str,
-    ) {
+    pub fn populate_app_and_version(&self, app_name: &'static str, app_version: &'static str) {
         let inner = {
-            let write_access = self.inner.log_readers.load();
+            let write_access = self.inner.log_consumers.load();
 
             if let Ok(env_info) = std::env::var("ENV_INFO") {
                 let params: [(&'static str, StrOrString<'static>); 3] = [
@@ -40,33 +36,33 @@ impl MyLogger {
             }
         };
 
-        self.inner.log_readers.store(inner.into());
+        self.inner.log_consumers.store(inner.into());
     }
 
-    pub fn plug_reader(&self, reader: Arc<dyn MyLoggerReader + Send + Sync + 'static>) {
+    pub fn plug_consumer(&self, consumer: Arc<dyn MyLoggerConsumer + Send + Sync + 'static>) {
         let inner = {
-            let write_access = self.inner.log_readers.load();
-            write_access.register_reader(reader)
+            let write_access = self.inner.log_consumers.load();
+            write_access.register_consumer(consumer)
         };
 
-        self.inner.log_readers.store(inner.into());
+        self.inner.log_consumers.store(inner.into());
     }
 
     pub fn populate_params(&self, key: &'static str, value: impl Into<StrOrString<'static>>) {
         let value: StrOrString<'static> = value.into();
 
         let inner = {
-            let write_access = self.inner.log_readers.load();
+            let write_access = self.inner.log_consumers.load();
 
             let items = [(key, value)];
             write_access.populate_params(items.into_iter())
         };
 
-        self.inner.log_readers.store(inner.into());
+        self.inner.log_consumers.store(inner.into());
     }
 
     pub fn get_populated_params(&self) -> PopulatedParams {
-        let read_access = self.inner.log_readers.load();
+        let read_access = self.inner.log_consumers.load();
         read_access.get_populated_params().clone()
     }
 
@@ -88,23 +84,11 @@ impl MyLogger {
         self.inner.update_statistics(log_event.level);
         self.inner.console_printer.print_to_console(&log_event);
 
-        let readers = self.inner.log_readers.load();
+        let consumers = self.inner.log_consumers.load();
 
         let log_event = Arc::new(log_event);
-        for reader in readers.get_readers() {
-            reader.write_log(log_event.clone());
-        }
-    }
-
-    #[deprecated(note = "Use write_log instead")]
-    pub async fn write_log_async(&self, log_event: Arc<MyLogEvent>) {
-        let inner = self.inner.clone();
-        self.inner.update_statistics(log_event.level);
-        let inner_read_access = inner.log_readers.load();
-        inner.console_printer.print_to_console(&log_event);
-
-        for reader in inner_read_access.get_readers() {
-            reader.write_log(log_event.clone());
+        for consumer in consumers.get_consumers() {
+            consumer.write_log(log_event.clone());
         }
     }
 

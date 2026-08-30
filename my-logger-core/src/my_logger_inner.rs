@@ -1,12 +1,12 @@
 use arc_swap::ArcSwap;
 use rust_extensions::{date_time::DateTimeAsMicroseconds, StrOrString};
 
-use crate::{ConsoleFilter, LogLevel, LogReaders, LogsStatistics};
+use crate::{ConsoleFilter, LogConsumers, LogLevel, LogsStatistics};
 
 pub struct MyLoggerInner {
     pub console_printer: ConsoleFilter,
     pub statistics: LogsStatistics,
-    pub log_readers: ArcSwap<LogReaders>,
+    pub log_consumers: ArcSwap<LogConsumers>,
 
     pub start_time: DateTimeAsMicroseconds,
 }
@@ -17,7 +17,7 @@ impl MyLoggerInner {
             console_printer: ConsoleFilter::new(),
             statistics: LogsStatistics::new(),
             start_time: DateTimeAsMicroseconds::now(),
-            log_readers: ArcSwap::new(LogReaders::new(populated_params).into()),
+            log_consumers: ArcSwap::new(LogConsumers::new(populated_params).into()),
         }
     }
 

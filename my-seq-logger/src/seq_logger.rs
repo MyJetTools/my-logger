@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{SeqLoggerInner, SeqLoggerSettings, SeqSettings};
-use my_logger_core::{LogEventCtx, MyLogEvent, MyLoggerReader};
+use my_logger_core::{LogEventCtx, MyLogEvent, MyLoggerConsumer};
 use rust_extensions::background_executor::BackgroundExecutor;
 
 pub struct SeqLogger {
@@ -49,6 +49,14 @@ impl SeqLogger {
 
         result.background_executor.register(result.inner.clone());
 
+        // Spawns the one reader task onto the runtime we are being awaited on -
+        // the host's. It lives as long as that runtime does, so the caller has to
+        // keep it alive for as long as it wants logs shipped.
+        //
+        // Writing a log needs none of this: `trigger` only adds a permit to a
+        // semaphore, which is safe from any thread, with or without a runtime
+        // around it - a Tokio task, a plain `std::thread`, or an OS thread a C++
+        // host owns and calls in through FFI.
         result
             .background_executor
             .start(my_logger_core::LOGGER.clone());
@@ -56,11 +64,11 @@ impl SeqLogger {
         println!("Seq Logs writer is started");
 
         let seq_logger = Arc::new(result);
-        my_logger_core::LOGGER.plug_reader(seq_logger.clone());
+        my_logger_core::LOGGER.plug_consumer(seq_logger.clone());
     }
 }
 
-impl MyLoggerReader for SeqLogger {
+impl MyLoggerConsumer for SeqLogger {
     fn write_log(&self, log_event: Arc<MyLogEvent>) {
         self.inner.log_events.enqueue(log_event);
         self.background_executor.trigger();
