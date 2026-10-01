@@ -44,7 +44,7 @@ impl SeqLogger {
 
         let result = Self {
             inner: Arc::new(inner),
-            background_executor: BackgroundExecutor::new("SeqLogger"),
+            background_executor: BackgroundExecutor::new("SeqLogger", my_logger_core::LOGGER.clone()),
         };
 
         result.background_executor.register(result.inner.clone());
@@ -57,9 +57,7 @@ impl SeqLogger {
         // semaphore, which is safe from any thread, with or without a runtime
         // around it - a Tokio task, a plain `std::thread`, or an OS thread a C++
         // host owns and calls in through FFI.
-        result
-            .background_executor
-            .start(my_logger_core::LOGGER.clone());
+        result.background_executor.start();
 
         println!("Seq Logs writer is started");
 
