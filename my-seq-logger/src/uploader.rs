@@ -116,10 +116,20 @@ fn is_status_code_ok(status_code: u16) -> bool {
     status_code >= 200 && status_code < 210
 }
 
+const MAX_RESPONSE_BODY_SIZE: usize = 1024 * 1024;
+
 async fn print_fl_url_response(response: &mut FlUrlResponse) {
     println!("Result: {}", response.get_status_code());
-    let body = response.get_body_as_slice().await;
-    let body = match body {
+    let body = match response.get_body() {
+        Ok(body) => body,
+
+        Err(err) => {
+            eprintln!("Error while reading response body. Err: {:?}", err);
+            return;
+        }
+    };
+
+    let body = match body.into_vec(MAX_RESPONSE_BODY_SIZE).await {
         Ok(body) => body,
 
         Err(err) => {
