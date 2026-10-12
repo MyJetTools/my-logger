@@ -6,7 +6,7 @@ What the [Seq logger](seq-logger.md) is set up with. The application gives it th
 url=http://127.0.0.1:5341;apikey=my-api-key;product=my-product;timeout=10
 ```
 
-`key=value` pairs separated by `;`. The keys are in lower case, with no spaces around them and no `;` after the last pair. Only the first `=` of a pair separates, so a value may have `=` in it - but not `;`.
+`key=value` pairs separated by `;`. The keys are in lower case, with no spaces around them and no `;` after the last pair. A pair with a key which is not in the table is ignored. Only the first `=` of a pair separates, so a value may have `=` in it - but not `;`.
 
 | Key | | Default | |
 |---|---|---|---|
@@ -44,7 +44,7 @@ The string is read again before every request, so a change needs no restart:
 | What is wrong | What happens |
 |---|---|
 | No `url` | Not a panic: `Can not parse Logs settings` is printed to stderr and the string is read again every 5 seconds. Nothing is sent until then. |
-| An unknown key - `Url`, `ApiKey` in upper case as well | panic |
+| An unknown key - `Url`, `ApiKey` in upper case as well | Not a panic: the pair is ignored without a word. A misspelled key reads as a missing one: `prodcut=...` sends no scope, `Url=...` is no `url`. |
 | A pair without `=` - a `;` after the last pair as well | panic |
 | `timeout`, `queuesize`, `flushlogschunk` or `flushdelay` which is not a number | panic |
 | A `product` which can not name a scope | panic |

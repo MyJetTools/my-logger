@@ -71,9 +71,7 @@ impl SeqLoggerSettings {
                 "timeout" => {
                     timeout = value.parse::<u64>().expect("Timeout must be a number");
                 }
-                _ => {
-                    panic!("Invalid key {} of seq connection string ", key);
-                }
+                _ => {}
             }
         }
 
@@ -185,6 +183,16 @@ mod tests {
         assert_eq!(super::DEFAULT_FLUSH_SLEEP, result.flush_delay.as_secs());
         assert!(result.queue_size.is_none());
         assert!(result.product.is_none());
+    }
+
+    #[test]
+    fn test_try_parse_unknown_key_is_ignored() {
+        let str = "url=seq.test.com;unknown=value;apikey=value";
+
+        let result = SeqLoggerSettings::try_parse(str).unwrap();
+
+        assert_eq!("seq.test.com", result.url);
+        assert_eq!(Some("value".to_string()), result.api_key);
     }
 
     #[test]
