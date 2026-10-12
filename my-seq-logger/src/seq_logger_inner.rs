@@ -29,7 +29,12 @@ impl SeqLoggerInner {
 
         let mut cached = self.cached_uploader.lock();
         if let Some(existing) = cached.as_ref() {
-            if existing.matches(&settings.url, &settings.api_key, settings.timeout) {
+            if existing.matches(
+                &settings.url,
+                &settings.api_key,
+                &settings.product,
+                settings.timeout,
+            ) {
                 return existing.clone();
             }
         }
@@ -37,6 +42,7 @@ impl SeqLoggerInner {
         let uploader = Arc::new(FlUrlUploader::new(
             settings.url,
             settings.api_key,
+            settings.product,
             settings.timeout,
         ));
         *cached = Some(uploader.clone());

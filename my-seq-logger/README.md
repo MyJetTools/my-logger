@@ -1,9 +1,9 @@
 # my-seq-logger
-Seq Logger
 
-Please Use wiki to read documentation
-https://github.com/MyJetTools/my-seq-logger/wiki
+Sends the records of [my-logger](../README.md) to [Seq](https://datalust.co/seq) or to my-logger-server.
 
+It is plugged through the `my-seq-logger` feature of `my-logger`: [how to plug it](../README.md#plug-the-seq-logger).
 
-### 0.2.1
-* Settings now are read each fail case
+- [Seq logger](../docs/seq-logger.md) - how the records are sent.
+- [Connection string](../docs/seq-connection-string.md) - what it is set up with.
+- [Product scope](../docs/seq-connection-string.md#product-scope) - the `product` of the connection string.
